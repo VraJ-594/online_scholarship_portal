@@ -18,6 +18,13 @@ const registerUser = async (req, res) => {
       return;
     }
 
+    if (!email.toLowerCase().endsWith("@dau.ac.in")) {
+      return res.status(400).json({
+        success: false,
+        message: "Please register with your official @dau.ac.in email address.",
+      });
+    }
+
     const userExist = await pool.query(
       "select * from osp.users where email=($1)",
       [email]

@@ -11,15 +11,13 @@ import image3 from "./image3.jpg";
 import logo from "./group7.png";
 
 const LoginRegister = () => {
-  const [isRegistering, setIsRegistering] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [username, setUsername] = useState("");
   const [captchaInput, setCaptchaInput] = useState("");
   const [captcha, setCaptcha] = useState(generateCaptcha());
   const [selectedRole, setSelectedRole] = useState("student");
   const [passwordVisible, setPasswordVisible] = useState(false);
-  
+
   // New UI state
   const [isLoading, setIsLoading] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -75,14 +73,6 @@ const LoginRegister = () => {
     } else if (data.role === "admin") {
       navigate("/admin");
     }
-  };
-
-  const toggleForm = () => {
-    refreshCaptcha();
-    setIsRegistering(!isRegistering);
-    // Optional: reset fields when toggling
-    setPassword("");
-    setCaptchaInput("");
   };
 
   const refreshCaptcha = () => {
@@ -151,38 +141,6 @@ const LoginRegister = () => {
     }
   };
 
-  const handleRegisterSubmit = async (event) => {
-    event.preventDefault();
-    setIsLoading(true);
-    try {
-      const response = await fetch(`${baseURL}/api/user/register`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          username,
-          email,
-          password,
-          role: selectedRole,
-        }),
-      });
-
-      const data = await response.json().catch(() => ({}));
-
-      if (response.ok) {
-        toast.success("Registration successful! Please log in.");
-        toggleForm();
-      } else {
-        toast.error(data.message || "Registration failed");
-      }
-    } catch (error) {
-      toast.error("An error occurred while registering.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   function generateCaptcha() {
     return Math.floor(1000 + Math.random() * 9000).toString();
   }
@@ -233,161 +191,123 @@ const LoginRegister = () => {
               OSP
             </h1>
             <p className="text-sm text-slate-500 mt-1">
-              {isRegistering
-                ? "Create your student account"
+              {selectedRole === "student"
+                ? "Sign in with your dau.ac.in Google account"
                 : "Log in to the Online Scholarship Portal"}
             </p>
           </div>
 
-          <form
-            className="space-y-4 mt-6"
-            onSubmit={isRegistering ? handleRegisterSubmit : handleLoginSubmit}
-          >
-            {isRegistering && (
+          <div className="space-y-1.5 mt-6">
+            <span className="text-sm font-medium text-slate-700">Log in as</span>
+            <div className="grid grid-cols-2 gap-1 p-1 bg-slate-100 rounded-lg">
+              {["student", "admin"].map((role) => (
+                <button
+                  key={role}
+                  type="button"
+                  onClick={() => setSelectedRole(role)}
+                  className={`py-2 rounded-md text-sm font-semibold capitalize transition-colors ${
+                    selectedRole === role
+                      ? "bg-white text-[#00020b] shadow-sm"
+                      : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  {role}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {selectedRole === "student" ? (
+            <div className="flex flex-col items-center py-6">
+              <GoogleLogin
+                onSuccess={(credentialResponse) => handleGoogleLogin(credentialResponse.credential)}
+                onError={() => toast.error("Google sign-in failed. Please try again.")}
+                text="continue_with"
+              />
+              <p className="text-xs text-slate-400 mt-4 text-center max-w-xs">
+                New here? The same button creates your account on your first sign-in --
+                no separate registration needed.
+              </p>
+            </div>
+          ) : (
+            <form className="space-y-4 mt-4" onSubmit={handleLoginSubmit}>
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-slate-700">Username</label>
+                <label className="text-sm font-medium text-slate-700">Email</label>
                 <input
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  type="email"
+                  value={email}
                   required
-                  placeholder="Your full name"
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
                   className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#005DFF] focus:border-transparent"
                 />
               </div>
-            )}
 
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-slate-700">Email</label>
-              <input
-                type="email"
-                value={email}
-                required
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#005DFF] focus:border-transparent"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <div className="flex items-baseline justify-between">
-                <label className="text-sm font-medium text-slate-700">Password</label>
-                {!isRegistering && (
+              <div className="space-y-1.5">
+                <div className="flex items-baseline justify-between">
+                  <label className="text-sm font-medium text-slate-700">Password</label>
                   <Link
                     to="/forgot-password"
                     className="text-xs font-medium text-[#005DFF] hover:underline"
                   >
                     Forgot your password?
                   </Link>
-                )}
-              </div>
-              <div className="relative">
-                <input
-                  type={passwordVisible ? "text" : "password"}
-                  value={password}
-                  required
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#005DFF] focus:border-transparent"
-                />
-                <button
-                  type="button"
-                  onClick={togglePasswordVisibility}
-                  aria-label={passwordVisible ? "Hide password" : "Show password"}
-                  className="absolute inset-y-0 right-3 flex items-center text-slate-400 hover:text-slate-600 bg-transparent border-none cursor-pointer"
-                >
-                  {passwordVisible ? <FaEyeSlash /> : <FaEye />}
-                </button>
-              </div>
-            </div>
-
-            {!isRegistering && (
-              <div className="space-y-1.5">
-                <span className="text-sm font-medium text-slate-700">Log in as</span>
-                <div className="grid grid-cols-2 gap-1 p-1 bg-slate-100 rounded-lg">
-                  {["student", "admin"].map((role) => (
-                    <button
-                      key={role}
-                      type="button"
-                      onClick={() => setSelectedRole(role)}
-                      className={`py-2 rounded-md text-sm font-semibold capitalize transition-colors ${
-                        selectedRole === role
-                          ? "bg-white text-[#00020b] shadow-sm"
-                          : "text-slate-500 hover:text-slate-700"
-                      }`}
-                    >
-                      {role}
-                    </button>
-                  ))}
+                </div>
+                <div className="relative">
+                  <input
+                    type={passwordVisible ? "text" : "password"}
+                    value={password}
+                    required
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter your password"
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#005DFF] focus:border-transparent"
+                  />
+                  <button
+                    type="button"
+                    onClick={togglePasswordVisibility}
+                    aria-label={passwordVisible ? "Hide password" : "Show password"}
+                    className="absolute inset-y-0 right-3 flex items-center text-slate-400 hover:text-slate-600 bg-transparent border-none cursor-pointer"
+                  >
+                    {passwordVisible ? <FaEyeSlash /> : <FaEye />}
+                  </button>
                 </div>
               </div>
-            )}
 
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-slate-700">
-                Enter the code below
-              </label>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="px-4 py-2 bg-slate-100 text-slate-800 rounded-lg font-bold tracking-widest select-none">
-                  {captcha}
-                </span>
-                <button
-                  type="button"
-                  onClick={refreshCaptcha}
-                  className="px-3 py-2 text-sm font-medium text-[#005DFF] hover:bg-slate-50 rounded-lg border border-slate-200 transition-colors"
-                >
-                  Refresh
-                </button>
-                <input
-                  type="number"
-                  value={captchaInput}
-                  required
-                  onChange={(e) => setCaptchaInput(e.target.value)}
-                  placeholder="Code"
-                  className="flex-1 min-w-[8rem] px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#005DFF] focus:border-transparent"
-                />
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-slate-700">
+                  Enter the code below
+                </label>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="px-4 py-2 bg-slate-100 text-slate-800 rounded-lg font-bold tracking-widest select-none">
+                    {captcha}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={refreshCaptcha}
+                    className="px-3 py-2 text-sm font-medium text-[#005DFF] hover:bg-slate-50 rounded-lg border border-slate-200 transition-colors"
+                  >
+                    Refresh
+                  </button>
+                  <input
+                    type="number"
+                    value={captchaInput}
+                    required
+                    onChange={(e) => setCaptchaInput(e.target.value)}
+                    placeholder="Code"
+                    className="flex-1 min-w-[8rem] px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#005DFF] focus:border-transparent"
+                  />
+                </div>
               </div>
-            </div>
 
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full py-2.5 bg-[#00020b] text-white font-semibold rounded-lg shadow-sm hover:bg-[#161a2e] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading
-                ? isRegistering
-                  ? "Creating account..."
-                  : "Logging in..."
-                : isRegistering
-                ? "Create account"
-                : "Log in"}
-            </button>
-          </form>
-
-          <div className="flex items-center gap-3 my-6">
-            <div className="flex-1 h-px bg-slate-200" />
-            <span className="text-xs text-slate-400">or</span>
-            <div className="flex-1 h-px bg-slate-200" />
-          </div>
-
-          <div className="flex justify-center">
-            <GoogleLogin
-              onSuccess={(credentialResponse) => handleGoogleLogin(credentialResponse.credential)}
-              onError={() => toast.error("Google sign-in failed. Please try again.")}
-              text="continue_with"
-            />
-          </div>
-
-          <p className="text-center text-sm text-slate-500 mt-6">
-            {isRegistering ? "Already have an account?" : "New to OSP?"}{" "}
-            <button
-              type="button"
-              onClick={toggleForm}
-              className="font-semibold text-[#005DFF] hover:underline bg-transparent border-none cursor-pointer p-0"
-            >
-              {isRegistering ? "Log in" : "Create an account"}
-            </button>
-          </p>
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full py-2.5 bg-[#00020b] text-white font-semibold rounded-lg shadow-sm hover:bg-[#161a2e] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isLoading ? "Logging in..." : "Log in"}
+              </button>
+            </form>
+          )}
         </div>
       </div>
     </>

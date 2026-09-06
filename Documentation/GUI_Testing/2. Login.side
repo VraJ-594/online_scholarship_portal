@@ -1,0 +1,266 @@
+{
+  "id": "3c54f2a8-8cba-44fb-87bb-9eaf6967ebd5",
+  "version": "2.0",
+  "name": "Online Scholarship Portal",
+  "url": "https://group7-osp-forked.vercel.app/",
+  "tests": [{
+    "id": "b90b1c2f-a9f5-4268-a8ae-878d53a3efb2",
+    "name": "1. Sign-Up page",
+    "commands": [{
+      "id": "c6f2f86e-df11-4b66-acb3-2f9b89847f1b",
+      "comment": "",
+      "command": "open",
+      "target": "https://group7-osp-forked.vercel.app/",
+      "targets": [],
+      "value": ""
+    }, {
+      "id": "b9b850f1-c812-4893-8725-a82258328dcb",
+      "comment": "",
+      "command": "setWindowSize",
+      "target": "1552x832",
+      "targets": [],
+      "value": ""
+    }, {
+      "id": "f238d5dd-d2dc-4380-b3c1-89b6d5cf37f7",
+      "comment": "",
+      "command": "click",
+      "target": "css=.hover\\3Aunderline",
+      "targets": [
+        ["css=.hover\\3Aunderline", "css:finder"],
+        ["xpath=//div[@id='root']/div/div/div/p/span", "xpath:idRelative"],
+        ["xpath=//p/span", "xpath:position"],
+        ["xpath=//span[contains(.,'Register')]", "xpath:innerText"]
+      ],
+      "value": ""
+    }, {
+      "id": "49f9cfe1-a082-423a-87b4-15078991bd7b",
+      "comment": "",
+      "command": "click",
+      "target": "css=.bg-slate-8000",
+      "targets": [
+        ["css=.bg-slate-8000", "css:finder"],
+        ["xpath=//input[@value='']", "xpath:attributes"],
+        ["xpath=//div[@id='root']/div/div/div/form/div/input", "xpath:idRelative"],
+        ["xpath=//input", "xpath:position"]
+      ],
+      "value": ""
+    }, {
+      "id": "dd24033b-fd27-4eb3-bd68-03a9a1aa9021",
+      "comment": "",
+      "command": "type",
+      "target": "css=.bg-slate-8000",
+      "targets": [
+        ["css=.bg-slate-8000", "css:finder"],
+        ["xpath=//input[@value='akshatjoshi']", "xpath:attributes"],
+        ["xpath=//div[@id='root']/div/div/div/form/div/input", "xpath:idRelative"],
+        ["xpath=//input", "xpath:position"]
+      ],
+      "value": "akshatjoshi"
+    }, {
+      "id": "8264559b-30cb-4b1a-863d-3b96330cbc97",
+      "comment": "",
+      "command": "click",
+      "target": "css=.focus\\3Aring-slate-600:nth-child(2)",
+      "targets": [
+        ["css=.focus\\3Aring-slate-600:nth-child(2)", "css:finder"],
+        ["xpath=//input[@value='']", "xpath:attributes"],
+        ["xpath=//div[@id='root']/div/div/div/form/div[2]/input", "xpath:idRelative"],
+        ["xpath=//div[2]/input", "xpath:position"]
+      ],
+      "value": ""
+    }, {
+      "id": "82732a33-f663-46d5-8b7b-26668ed771af",
+      "comment": "",
+      "command": "type",
+      "target": "css=.focus\\3Aring-slate-600:nth-child(2)",
+      "targets": [
+        ["css=.focus\\3Aring-slate-600:nth-child(2)", "css:finder"],
+        ["xpath=//input[@value='202201185@daiict.ac.in']", "xpath:attributes"],
+        ["xpath=//div[@id='root']/div/div/div/form/div[2]/input", "xpath:idRelative"],
+        ["xpath=//div[2]/input", "xpath:position"]
+      ],
+      "value": "202201185@daiict.ac.in"
+    }, {
+      "id": "7034d8da-aa9d-4718-9b75-932cece00f8b",
+      "comment": "",
+      "command": "click",
+      "target": "css=.py-2\\.5:nth-child(1)",
+      "targets": [
+        ["css=.py-2\\.5:nth-child(1)", "css:finder"],
+        ["xpath=//input[@value='']", "xpath:attributes"],
+        ["xpath=//div[@id='root']/div/div/div/form/div[3]/div/input", "xpath:idRelative"],
+        ["xpath=//div[3]/div/input", "xpath:position"]
+      ],
+      "value": ""
+    }, {
+      "id": "574ed0bf-014e-4366-b969-3ce257512c23",
+      "comment": "",
+      "command": "type",
+      "target": "css=.py-2\\.5:nth-child(1)",
+      "targets": [
+        ["css=.py-2\\.5:nth-child(1)", "css:finder"],
+        ["xpath=//input[@value='12345']", "xpath:attributes"],
+        ["xpath=//div[@id='root']/div/div/div/form/div[3]/div/input", "xpath:idRelative"],
+        ["xpath=//div[3]/div/input", "xpath:position"]
+      ],
+      "value": "12345"
+    }, {
+      "id": "0226b656-f7e6-4477-8a42-06ba0b098f0e",
+      "comment": "",
+      "command": "click",
+      "target": "css=.w-full:nth-child(3)",
+      "targets": [
+        ["css=.w-full:nth-child(3)", "css:finder"],
+        ["xpath=//input[@value='']", "xpath:attributes"],
+        ["xpath=//div[@id='root']/div/div/div/form/div[4]/div/input", "xpath:idRelative"],
+        ["xpath=//div[4]/div/input", "xpath:position"]
+      ],
+      "value": ""
+    }, {
+      "id": "db74451f-a42b-4675-a5bf-c4be09b3b131",
+      "comment": "",
+      "command": "type",
+      "target": "css=.w-full:nth-child(3)",
+      "targets": [
+        ["css=.w-full:nth-child(3)", "css:finder"],
+        ["xpath=//input[@value='']", "xpath:attributes"],
+        ["xpath=//div[@id='root']/div/div/div/form/div[4]/div/input", "xpath:idRelative"],
+        ["xpath=//div[4]/div/input", "xpath:position"]
+      ],
+      "value": "1544"
+    }, {
+      "id": "bc583463-c99d-41de-827e-1d73d2e0258c",
+      "comment": "",
+      "command": "click",
+      "target": "css=.transition-all",
+      "targets": [
+        ["css=.transition-all", "css:finder"],
+        ["xpath=//button[@type='submit']", "xpath:attributes"],
+        ["xpath=//div[@id='root']/div/div/div/form/button", "xpath:idRelative"],
+        ["xpath=//form/button", "xpath:position"],
+        ["xpath=//button[contains(.,'Register')]", "xpath:innerText"]
+      ],
+      "value": ""
+    }, {
+      "id": "bad44bcf-de80-4ef6-ac89-0d2480357ad7",
+      "comment": "",
+      "command": "assertAlert",
+      "target": "Registration successful! Please log in.",
+      "targets": [],
+      "value": ""
+    }]
+  }, {
+    "id": "6c7b5f61-4639-41e3-83a2-8982fc04284e",
+    "name": "2. Login Page",
+    "commands": [{
+      "id": "a8bc76c6-4576-4c06-9744-016b80e357bb",
+      "comment": "",
+      "command": "open",
+      "target": "https://group7-osp-forked.vercel.app/",
+      "targets": [],
+      "value": ""
+    }, {
+      "id": "b85a8123-f015-44ff-b285-6d126ae985f0",
+      "comment": "",
+      "command": "setWindowSize",
+      "target": "1552x832",
+      "targets": [],
+      "value": ""
+    }, {
+      "id": "12067c23-b29d-49d4-b1b6-c6d7e46056d6",
+      "comment": "",
+      "command": "click",
+      "target": "css=.w-full:nth-child(2)",
+      "targets": [
+        ["css=.w-full:nth-child(2)", "css:finder"],
+        ["xpath=//input[@value='']", "xpath:attributes"],
+        ["xpath=//div[@id='root']/div/div/div/form/div/input", "xpath:idRelative"],
+        ["xpath=//input", "xpath:position"]
+      ],
+      "value": ""
+    }, {
+      "id": "5ae5d92b-bd7a-4c73-8581-81c5e1a5203f",
+      "comment": "",
+      "command": "type",
+      "target": "css=.w-full:nth-child(2)",
+      "targets": [
+        ["css=.w-full:nth-child(2)", "css:finder"],
+        ["xpath=//input[@value='akshatjoshi2604@gmail.com']", "xpath:attributes"],
+        ["xpath=//div[@id='root']/div/div/div/form/div/input", "xpath:idRelative"],
+        ["xpath=//input", "xpath:position"]
+      ],
+      "value": "akshatjoshi2604@gmail.com"
+    }, {
+      "id": "5aaf4016-ad46-4edf-9bdf-a335d036a290",
+      "comment": "",
+      "command": "click",
+      "target": "css=.py-2\\.5:nth-child(1)",
+      "targets": [
+        ["css=.py-2\\.5:nth-child(1)", "css:finder"],
+        ["xpath=//input[@value='']", "xpath:attributes"],
+        ["xpath=//div[@id='root']/div/div/div/form/div[2]/div/input", "xpath:idRelative"],
+        ["xpath=//div[2]/div/input", "xpath:position"]
+      ],
+      "value": ""
+    }, {
+      "id": "ebae088d-fd4d-4817-b393-e8295a2080fa",
+      "comment": "",
+      "command": "type",
+      "target": "css=.py-2\\.5:nth-child(1)",
+      "targets": [
+        ["css=.py-2\\.5:nth-child(1)", "css:finder"],
+        ["xpath=//input[@value='12345']", "xpath:attributes"],
+        ["xpath=//div[@id='root']/div/div/div/form/div[2]/div/input", "xpath:idRelative"],
+        ["xpath=//div[2]/div/input", "xpath:position"]
+      ],
+      "value": "12345"
+    }, {
+      "id": "3132531d-069e-44ee-85bb-036a03c884d1",
+      "comment": "",
+      "command": "click",
+      "target": "css=.focus\\3Aring-white\\/30",
+      "targets": [
+        ["css=.focus\\3Aring-white\\/30", "css:finder"],
+        ["xpath=//input[@value='']", "xpath:attributes"],
+        ["xpath=//div[@id='root']/div/div/div/form/div[4]/div/input", "xpath:idRelative"],
+        ["xpath=//div[4]/div/input", "xpath:position"]
+      ],
+      "value": ""
+    }, {
+      "id": "efb2db9b-f848-4202-b67e-25444afbd024",
+      "comment": "",
+      "command": "type",
+      "target": "css=.focus\\3Aring-white\\/30",
+      "targets": [
+        ["css=.focus\\3Aring-white\\/30", "css:finder"],
+        ["xpath=//input[@value='']", "xpath:attributes"],
+        ["xpath=//div[@id='root']/div/div/div/form/div[4]/div/input", "xpath:idRelative"],
+        ["xpath=//div[4]/div/input", "xpath:position"]
+      ],
+      "value": "3215"
+    }, {
+      "id": "5838d21b-e7f6-460b-b9fd-94c4802f9d9d",
+      "comment": "",
+      "command": "click",
+      "target": "css=.transition-all",
+      "targets": [
+        ["css=.transition-all", "css:finder"],
+        ["xpath=//button[@type='submit']", "xpath:attributes"],
+        ["xpath=//div[@id='root']/div/div/div/form/button", "xpath:idRelative"],
+        ["xpath=//form/button", "xpath:position"],
+        ["xpath=//button[contains(.,'Login')]", "xpath:innerText"]
+      ],
+      "value": ""
+    }]
+  }],
+  "suites": [{
+    "id": "c5fc96c4-b7fb-4117-a1e4-8996665a146f",
+    "name": "Default Suite",
+    "persistSession": false,
+    "parallel": false,
+    "timeout": 300,
+    "tests": []
+  }],
+  "urls": ["https://group7-osp-forked.vercel.app/"],
+  "plugins": []
+}

@@ -1,0 +1,80 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Hide spin buttons in Firefox */
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+.backdrop-blur-lg {
+  background-color: rgba(0, 0, 0, 0.6); /* Black with 60% opacity */
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideInRight {
+  from { 
+    opacity: 0; 
+    transform: translateX(20px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateX(0); 
+  }
+}
+
+@keyframes slideInLeft {
+  from { 
+    opacity: 0; 
+    transform: translateX(-20px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateX(0); 
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out;
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.5s ease-out;
+}
+
+.animate-slide-in-left {
+  animation: slideInLeft 0.5s ease-out;
+}
+
+.text-black-800 {
+  color: #ffffff; /* Change to white for better contrast */
+}
+
+.text-black-700 {
+  color: #f0f0f0; /* Near white for better visibility */
+}
+
+.text-black-400 {
+  color: #cccccc; /* Lighter gray for icons */
+}
+
+.bg-black-800 {
+  background-color: rgba(255, 255, 255, 0.1); /* Light translucent for inputs */
+}
+
+.hover\:bg-blue-700:hover {
+  background-color: #0046b5; /* Slightly darker hover for contrast */
+}
+
+.focus\:ring-blue-500 {
+  border-color: #4285f4; /* Better focus ring visibility */
+}

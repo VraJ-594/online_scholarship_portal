@@ -6,6 +6,7 @@ import { useContextState } from "../../context/userProvider";
 import "../../index.css";
 import { ToastContainer, toast, Bounce } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { GoogleLogin } from "@react-oauth/google";
 import image3 from "./image3.jpg";
 import logo from "./group7.png";
 
@@ -54,20 +55,25 @@ const LoginRegister = () => {
       const check = await response.json().catch(() => ({}));
 
       if (response.ok) {
-        localStorage.setItem("userInfo", JSON.stringify(check));
-        localStorage.setItem("roleChecked", "true");
-
-        if (check.role === "student") {
-          navigate("/student");
-        } else if (check.role === "admin") {
-          navigate("/admin");
-        }
+        completeLogin(check);
       } else {
         localStorage.removeItem("userInfo");
         toast.error("Session expired, please log in again.");
       }
     } catch (err) {
       toast.error("Unexpected Error. Please login again.");
+    }
+  };
+
+  const completeLogin = (data) => {
+    localStorage.setItem("userInfo", JSON.stringify(data));
+    localStorage.setItem("roleChecked", "true");
+    setUser(data);
+
+    if (data.role === "student") {
+      navigate("/student");
+    } else if (data.role === "admin") {
+      navigate("/admin");
     }
   };
 
@@ -110,16 +116,7 @@ const LoginRegister = () => {
 
       const data = await response.json().catch(() => ({}));
       if (response.ok) {
-        localStorage.setItem("userInfo", JSON.stringify(data));
-        localStorage.setItem("roleChecked", "true");
-
-        setUser(data);
-
-        if (data.role === "student") {
-          navigate("/student");
-        } else if (data.role === "admin") {
-          navigate("/admin");
-        }
+        completeLogin(data);
       } else {
         toast.error(data.message || "Login failed");
         refreshCaptcha();
@@ -127,6 +124,28 @@ const LoginRegister = () => {
       }
     } catch (error) {
       toast.error("An error occurred while logging in.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async (credential) => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(`${baseURL}/api/user/google-login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ credential }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (response.ok) {
+        completeLogin(data);
+      } else {
+        toast.error(data.message || "Google sign-in failed.");
+      }
+    } catch (error) {
+      toast.error("An error occurred during Google sign-in.");
     } finally {
       setIsLoading(false);
     }
@@ -344,6 +363,20 @@ const LoginRegister = () => {
                 : "Log in"}
             </button>
           </form>
+
+          <div className="flex items-center gap-3 my-6">
+            <div className="flex-1 h-px bg-slate-200" />
+            <span className="text-xs text-slate-400">or</span>
+            <div className="flex-1 h-px bg-slate-200" />
+          </div>
+
+          <div className="flex justify-center">
+            <GoogleLogin
+              onSuccess={(credentialResponse) => handleGoogleLogin(credentialResponse.credential)}
+              onError={() => toast.error("Google sign-in failed. Please try again.")}
+              text="continue_with"
+            />
+          </div>
 
           <p className="text-center text-sm text-slate-500 mt-6">
             {isRegistering ? "Already have an account?" : "New to OSP?"}{" "}

@@ -50,51 +50,20 @@ const authUser = async (req, res) => {
   );
 };
 
+// Re-confirms an existing session and hands back a fresh token. Identity
+// and role come ONLY from req.user, which the `protect` middleware already
+// populated from a verified JWT + a fresh DB lookup -- never from the
+// request body. (Previously this trusted a client-supplied {email, role}
+// pair with no JWT check at all: anyone who knew an admin's email could
+// POST {email, role:"admin"} here and receive a valid admin token with no
+// password. The route now requires `protect`, closing that off entirely.)
 const authRole = async (req, res) => {
-  // console.log(req.body);
-  const { email, role } = req.body;
-
-  // console.log(req.body);
-  console.log("Reached authRole");
-
-  try {
-    const userExists = await pool.query(
-      "select * from osp.users where email=($1)",
-      [email]
-    );
-
-    if (userExists.rows.length) {
-      // console.log(userExists.rows[0]);
-
-      if (role == userExists.rows[0].role) {
-        res.status(201).json({
-          username: userExists.rows[0].username,
-          email: userExists.rows[0].email,
-          pic: userExists.rows[0].pic,
-          role: userExists.rows[0].role,
-          token: generateToken({email:userExists.rows[0].email , role:userExists.rows[0].role}),
-        });
-
-        console.log("Login Successful");
-      } else {
-        // console.log(role);
-        // console.log(userExists.rows[0].role);
-
-        return res
-          .status(401)
-          .json({
-            success: false,
-            message: `You don't have a permission as ${role}`,
-          });
-      }
-    } else {
-      return res
-        .status(400)
-        .json({ success: false, message: "User not found Please Login" });
-    }
-  } catch (err) {
-    console.log(err);
-    return res.status(400).json({ success: false, message: err });
-  }
+  return res.status(200).json({
+    username: req.user.username,
+    email: req.user.email,
+    pic: req.user.pic,
+    role: req.user.role,
+    token: generateToken({ email: req.user.email, role: req.user.role }),
+  });
 };
 module.exports = { authUser, authRole };

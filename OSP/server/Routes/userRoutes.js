@@ -30,7 +30,11 @@ const router = express.Router();
 // ──────────────────────────────────────────────────────────────────────
 router.route("/register").post(registerUser);
 router.route("/login").post(authUser);
-router.route("/authRole").post(authRole);
+
+// authRole re-confirms an existing session's role from the DB -- it
+// requires the same valid JWT as every other protected route, not just
+// a client-supplied email/role pair (see authRole's own comments).
+router.route("/authRole").post(protect, authRole);
 
 // ──────────────────────────────────────────────────────────────────────
 // 2. ADMIN ONLY ROUTES (Requires JWT + Admin Role)

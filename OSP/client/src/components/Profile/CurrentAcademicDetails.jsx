@@ -30,7 +30,7 @@ const CurrentAcademicDetails = ({
   };
 
   const handleValidatedInputChange = (e) => {
-    const { name, value } = e.target;
+    const { value } = e.target;
     if (parseFloat(value) < 0) {
       setValidationError("Negative fee values are not allowed.");
       setValidationErrorStatus(true);

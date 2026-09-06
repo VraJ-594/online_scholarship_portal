@@ -12,9 +12,8 @@ import ListofScholarship from "./components/Admin/ListofScholarship";
 import ViewApplicants from "./components/Admin/ViewApplicants";
 import ApplicantData from "./components/Admin/ApplicantsData";
 import StudentRoute from "./components/middleware/studentRoute";
-import ScholarshipList from "./components/Apply/StudentDashboard";
 import Profile from "./components/Profile/Profile";
-import Apply_Dashboard from "./components/Apply/Apply_Dashboard";
+import ApplyDashboard from "./components/Apply/ApplyDashboard";
 import ViewScholarshipStudent from "./components/Apply/ViewScholarshipStudent";
 import Scholarship from "./components/Apply/Scholarship";
 import Faqs from "./components/Faqs/Faqs";
@@ -117,7 +116,7 @@ function App() {
           path="/student/scholarship"
           element={
             <StudentRoute>
-              <Apply_Dashboard />{" "}
+              <ApplyDashboard />{" "}
             </StudentRoute>
           }
         />

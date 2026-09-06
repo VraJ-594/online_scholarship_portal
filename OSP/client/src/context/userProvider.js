@@ -6,7 +6,7 @@ const UserContext = createContext();
 
 const UserProvider = ({ children }) => {
   const [user, setUser] = useState(() => getStoredUserInfo());
-  const [baseURL, setBaseURL] = useState(
+  const [baseURL] = useState(
     process.env.REACT_APP_API_URL || "http://localhost:8080"
   );
   const navigate = useNavigate();

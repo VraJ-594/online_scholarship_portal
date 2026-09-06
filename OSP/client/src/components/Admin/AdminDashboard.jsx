@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useContextState, authHeaders } from "../../context/userProvider";
 import "../../index.css";
 
-const Admin_Dashboard = () => {
+const AdminDashboard = () => {
   const navigate = useNavigate();
   const { baseURL } = useContextState();
 
@@ -262,4 +262,4 @@ const Admin_Dashboard = () => {
   );
 };
 
-export default Admin_Dashboard;
+export default AdminDashboard;

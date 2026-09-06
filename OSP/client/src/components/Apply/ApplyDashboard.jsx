@@ -6,7 +6,7 @@ import { useContextState } from "../../context/userProvider";
 import imgdaiict from "../assets/imgdaiict.jpg";
 import "../../index.css";
 
-const Apply_Dashboard = () => {
+const ApplyDashboard = () => {
   const navigate = useNavigate();
   const { baseURL } = useContextState();
 
@@ -114,4 +114,4 @@ const Apply_Dashboard = () => {
   );
 };
 
-export default Apply_Dashboard;
+export default ApplyDashboard;

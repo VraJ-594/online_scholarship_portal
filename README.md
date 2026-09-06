@@ -2,8 +2,6 @@
 
 ## Table of Contents  
 * [Introduction](#introduction)  
-* [Updates](#updates)  
-* [Requirements](#requirements)  
 * [Installation Guide](#installation-guide)  
   * [Front-end](#front-end)  
   * [Back-end](#back-end)  
@@ -23,52 +21,49 @@ The *Online Scholarship Portal* is a modern web application designed to simplify
 
 # Installation Guide  
 
-## Front-end  
-- Clone the repository:  
-  bash
-  git clone [https://github.com/Group7_OSP](https://github.com/Group7_OSP)
+## Prerequisites
+- [Node.js](https://nodejs.org/) 20+ and npm
+- A PostgreSQL database (the deployed app uses [Supabase](https://supabase.com/))
 
-  
-- Open the index.html file in your browser to test the front-end components.  
+## Clone the repository
+```bash
+git clone git@github.com:VraJ-594/online_scholarship_portal.git
+cd online_scholarship_portal
+```
 
-## Back-end  
+## Back-end
+```bash
+cd OSP/server
+npm install
+cp .env.example .env   # fill in DATABASE_URL, token_api, user/pass, Cloudinary keys -- see .env.example for what each one is
+npm run dev             # nodemon, restarts on file changes (use `npm start` for a plain run)
+```
 
-### Node  
+### Database setup
+The schema lives in versioned migrations, not a single script you re-run:
+```bash
+npm run migrate up -- --schema osp
+```
+This applies `migrations/1_baseline_schema.sql` (creates every table) followed by
+any migrations after it, tracked in `osp.pgmigrations` so re-running is always
+safe. `schema.sql` in this folder is kept only as a human-readable reference
+snapshot -- it is destructive (`DROP SCHEMA ... CASCADE`) and should never be
+run against a database that already has data.
 
-- #### Node installation on Windows  
-  Download and install Node.js from the [official Node.js website](https://nodejs.org/).  
-
-- #### Node installation on Terminal  
-  Run the following commands:  
-  bash
-  sudo apt install nodejs  
-  sudo apt install npm  
-  
-
-- #### Verify Installation  
-  bash
-  node --version  
-  npm --version  
-  
-
-- #### Update npm (if required)  
-  bash
-  npm install npm -g  
-  
-
-### ExpressJS Installation  
-Install Express.js in the project directory:  
-bash
-npm install express  
-  
-More information: [Express.js Official Website](https://expressjs.com/en/starter/installing.html)  
+## Front-end
+```bash
+cd OSP/client
+npm install
+cp .env.example .env   # set REACT_APP_API_URL to your backend's URL
+npm start
+```
 
 
 # Features  
 
 - *Student Registration and Login:*  
-  - Secure account registration with OTP verification.  
-  - Login with "Forgot Password" functionality for account recovery.  
+  - Secure account registration with bcrypt-hashed passwords.  
+  - Login with "Forgot Password" functionality (OTP-based) for account recovery.  
 
 - *Scholarship Application Management:*  
   - Students can view available scholarships and apply with required details and documents.  
@@ -91,16 +86,25 @@ More information: [Express.js Official Website](https://expressjs.com/en/starter
 # Tech Stack  
 
 - *Frontend:*  
-  - HTML, CSS, JavaScript, Tailwind CSS
+  - React 18, React Router, Tailwind CSS
 
 - *Backend:*  
-  - Node.js, Express.js  
+  - Node.js, Express.js, JSON Web Tokens (auth), bcrypt (password hashing)
 
 - *Database:*  
-  - PostgreSQL  
+  - PostgreSQL, managed with [node-pg-migrate](https://github.com/salsita/node-pg-migrate)
 
-- *Testing Tools:*  
-  - Mocha, Early AI, Postman  
+- *File Storage:*
+  - Cloudinary (documents uploaded via Multer, verified server-side, then stored privately)
+
+- *Email:*
+  - Nodemailer (Gmail SMTP) for OTP-based password reset
+
+- *CI:*
+  - GitHub Actions builds the frontend and syntax-checks the backend on every push/PR
+
+- *Testing:*
+  - Manual GUI (Selenium), black-box, and UAT testing performed for the course and documented under `Documentation/` -- no automated test suite is wired into the app yet
 
 ---
 
@@ -109,8 +113,8 @@ More information: [Express.js Official Website](https://expressjs.com/en/starter
 ## Student Features  
 
 - *Account Management:*  
-  - Register with OTP-based verification.  
-  - Login and recover accounts using "Forgot Password".  
+  - Register with a username, email, and password.  
+  - Login and recover accounts using "Forgot Password" (OTP-based).  
 
 - *Scholarship Application:*  
   - Browse available scholarships and apply with necessary documents.  
@@ -152,15 +156,12 @@ More information: [Express.js Official Website](https://expressjs.com/en/starter
 ---
 
 # Deployment  
-The application is hosted on a cloud platform with the following setup:  
-- *Frontend:* React app deployed on Vercel/Netlify  
-- *Backend:* Node.js/Express server deployed on Render/Railway  
-- *Database:* PostgreSQL hosted on Supabase  
-- *File Storage:* Documents stored on Cloudinary  
+- *Frontend:* [Vercel](https://osp-silk.vercel.app) -- auto-deploys on push to `main`
+- *Backend:* [Render](https://osp-server.onrender.com) -- auto-deploys on push to `main` (free tier: the first request after inactivity can take 30-60s to wake up)
+- *Database:* PostgreSQL on Supabase, accessed via its session pooler (Render's outbound network doesn't support the direct connection's IPv6-only address)
+- *File Storage:* Cloudinary  
 
 ---
 
 # Contributors  
 [Vraj Dobariya](https://github.com/VraJ-594/)  
- 
-```

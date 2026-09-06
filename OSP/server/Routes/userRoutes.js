@@ -3,6 +3,7 @@ const express = require("express");
 // Controllers
 const { registerUser } = require("../controller/registerUser");
 const { authUser, authRole } = require("../controller/authUser");
+const { googleLogin } = require("../controller/googleAuth");
 const { getUserProfile, updateUserProfile } = require("../controller/getUserProfile");
 const { getListOfScholarships } = require("../controller/scholarshipListings");
 const { handleEmail } = require("../controller/handleEmail");
@@ -30,6 +31,7 @@ const router = express.Router();
 // ──────────────────────────────────────────────────────────────────────
 router.route("/register").post(registerUser);
 router.route("/login").post(authUser);
+router.route("/google-login").post(googleLogin);
 
 // authRole re-confirms an existing session's role from the DB -- it
 // requires the same valid JWT as every other protected route, not just

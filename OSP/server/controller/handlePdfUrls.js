@@ -1,6 +1,6 @@
 const pool = require("../config/db");
 
-const handelpdfurls = async (req, res) => {
+const handlePdfUrls = async (req, res) => {
   const { email } = req.params; // Get the email ID from the URL parameters
 
   if (req.user.role !== "admin" && req.user.email !== email) {
@@ -58,4 +58,4 @@ const handelpdfurls = async (req, res) => {
   }
 };
 
-module.exports = { handelpdfurls };
+module.exports = { handlePdfUrls };

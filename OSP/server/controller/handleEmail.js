@@ -1,6 +1,6 @@
 const pool = require("../config/db");
 
-const handelemail = async (req, res) => {
+const handleEmail = async (req, res) => {
   const email = req.params.email;
 
   if (req.user.role !== "admin" && req.user.email !== email) {
@@ -24,4 +24,4 @@ const handelemail = async (req, res) => {
   }
 };
 
-module.exports = { handelemail };
+module.exports = { handleEmail };

@@ -1,6 +1,6 @@
 const pool = require("../config/db");
 
-const getApplicantData = async (req, res) => {
+const getApplicantsData = async (req, res) => {
   console.log("Reached getApplicantData");
 
   const student_id = req.query.id;
@@ -70,4 +70,4 @@ const getApplicantData = async (req, res) => {
   }
 };
 
-module.exports = { getApplicantData };
+module.exports = { getApplicantsData };

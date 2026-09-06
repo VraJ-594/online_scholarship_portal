@@ -1,7 +1,7 @@
 const pool = require("../config/db");
 const cloudinary = require("../config/cloud");
 
-const handelclearpdf = async (req, res) => {
+const handleClearPdf = async (req, res) => {
     const { email, id } = req.params;
 
     if (req.user.role !== "admin" && req.user.email !== email) {
@@ -65,4 +65,4 @@ const handelclearpdf = async (req, res) => {
   
 };
 
-module.exports = { handelclearpdf };
+module.exports = { handleClearPdf };

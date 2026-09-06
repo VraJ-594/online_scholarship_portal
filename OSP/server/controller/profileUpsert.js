@@ -1,6 +1,6 @@
 const pool = require("../config/db");
 
-const handelprofiledata = async (req, res, next) => {
+const handleProfileData = async (req, res, next) => {
   const formData = req.body;
   const email = formData.email;
 
@@ -158,4 +158,4 @@ const handelprofiledata = async (req, res, next) => {
   }
 };
 
-module.exports = { handelprofiledata };
+module.exports = { handleProfileData };

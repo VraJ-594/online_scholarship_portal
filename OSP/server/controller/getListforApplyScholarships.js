@@ -1,6 +1,6 @@
 const pool = require("../config/db");
 
-const getListforApplyscholarships = async (req, res) => {
+const getListForApplyScholarships = async (req, res) => {
   console.log("Reached getListforApplyScholarships");
 
   try {
@@ -35,4 +35,4 @@ const getListforApplyscholarships = async (req, res) => {
     });
   }
 };
-module.exports = { getListforApplyscholarships };
+module.exports = { getListForApplyScholarships };

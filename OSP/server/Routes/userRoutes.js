@@ -4,18 +4,18 @@ const express = require("express");
 const { registerUser } = require("../controller/registerUser");
 const { authUser, authRole } = require("../controller/authUser");
 const { getUserProfile, updateUserProfile } = require("../controller/getUserProfile");
-const { getListOfScholarships } = require("../controller/ApplicantController");
-const { handelemail } = require("../controller/handelemail");
+const { getListOfScholarships } = require("../controller/scholarshipListings");
+const { handleEmail } = require("../controller/handleEmail");
 const { fetchprofile } = require("../controller/fetchprofile");
-const { handelprofiledata } = require("../controller/userprofile");
+const { handleProfileData } = require("../controller/profileUpsert");
 const { handeluploads } = require("../controller/uploadpdfs");
 const { getSecureDocumentUrl } = require("../controller/viewDocument");
-const { getListforApplyscholarships } = require("../controller/getListforApplyScholarships");
+const { getListForApplyScholarships } = require("../controller/getListforApplyScholarships");
 const { applyForScholarship } = require("../controller/applyForScholarship");
 const { getScholarship } = require("../controller/getScholarship");
 const { getApplicantId } = require("../controller/getApplicantId");
-const { handelpdfurls } = require("../controller/handelpdfurls");
-const { handelclearpdf } = require("../controller/handelclearpdf");
+const { handlePdfUrls } = require("../controller/handlePdfUrls");
+const { handleClearPdf } = require("../controller/handleClearPdf");
 const { getAppliedScholarships } = require("../controller/getAppliedScholarships");
 
 // Middleware & Config
@@ -49,14 +49,14 @@ router.get("/documents/view/:studentEmail/:documentType", protect, getSecureDocu
 router.get("/getApplicantId", protect, getApplicantId);
 router.route("/viewscholarship/:scholarship_id").get(protect, getScholarship);
 router.route("/getlistofscholarships").get(protect, getListOfScholarships);
-router.route("/getlistforApplyscholarships").get(protect, getListforApplyscholarships);
+router.route("/getlistforApplyscholarships").get(protect, getListForApplyScholarships);
 router.route("/applyForScholarship/:scholarship_id").post(protect, applyForScholarship);
 router.route("/getAppliedScholarships").get(protect, getAppliedScholarships);
-router.get("/getemail/:email", protect, handelemail);
+router.get("/getemail/:email", protect, handleEmail);
 router.get("/getprofile/:email", protect, fetchprofile);
-router.get("/getpdfurls/:email", protect, handelpdfurls);
-router.post("/profile", protect, handelprofiledata);
-router.post("/clearpdf/:email/:id", protect, handelclearpdf);
+router.get("/getpdfurls/:email", protect, handlePdfUrls);
+router.post("/profile", protect, handleProfileData);
+router.post("/clearpdf/:email/:id", protect, handleClearPdf);
 router.post("/pdf/:email/:key", protect, upload.single("file"), handeluploads);
 
 module.exports = router;

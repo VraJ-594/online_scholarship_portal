@@ -5,7 +5,7 @@ const dotenv = require("dotenv");
 
 const userRoutes = require("./Routes/userRoutes");
 const scholarshipRoutes = require("./Routes/scholarshipRoutes");
-const resetPassRoute = require("./Routes/resetPassRoute");
+const resetPassRoute = require("./Routes/resetPassRoutes");
 
 // Import our new middleware
 const requestLogger = require("./middleware/logger");

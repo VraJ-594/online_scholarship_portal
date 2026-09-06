@@ -6,8 +6,8 @@ const { editScholarship } = require("../controller/editScholarship");
 const { getScholarship } = require("../controller/getScholarship");
 const {
   getApplicantsByScholarshipId,
-} = require("../controller/ApplicantController");
-const { getApplicantData } = require("../controller/getApplicantsData");
+} = require("../controller/scholarshipListings");
+const { getApplicantsData } = require("../controller/getApplicantsData");
 const { statusUpdate } = require("../controller/statusUpdate");
 
 // Import BOTH middlewares
@@ -22,7 +22,7 @@ router.route("/editScholarship/:scholarship_id").put(protect, requireAdmin, edit
 router.route("/deleteScholarship/:scholarship_id").delete(protect, requireAdmin, deleteScholarship);
 
 // ADMIN ONLY DATA VIEWING
-router.route("/getApplicantData").get(protect, requireAdmin, getApplicantData);
+router.route("/getApplicantData").get(protect, requireAdmin, getApplicantsData);
 router.route("/statusUpdate").put(protect, requireAdmin, statusUpdate);
 router.route("/:id/applicants").get(protect, requireAdmin, getApplicantsByScholarshipId);
 

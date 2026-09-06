@@ -88,11 +88,17 @@ const applyForScholarship = async (req, res, next) => {
     let parsedCourses = [];
     try {
       // Handle Postgres array mapping to JS safely
-      parsedCourses = typeof scholarship.eligible_courses === 'string' 
-        ? JSON.parse(scholarship.eligible_courses) 
+      parsedCourses = typeof scholarship.eligible_courses === 'string'
+        ? JSON.parse(scholarship.eligible_courses)
         : scholarship.eligible_courses;
     } catch (e) {
-      parsedCourses = [];
+      // Legacy rows may store this as a plain comma-separated string instead
+      // of a JSON array -- fall back to splitting on commas rather than
+      // silently disabling the eligibility check for that scholarship.
+      parsedCourses = String(scholarship.eligible_courses || "")
+        .split(",")
+        .map((c) => c.trim())
+        .filter(Boolean);
     }
 
     if (parsedCourses && parsedCourses.length > 0 && !parsedCourses.includes(applicant.course_name)) {

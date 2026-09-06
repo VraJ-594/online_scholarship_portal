@@ -10,41 +10,44 @@ const authUser = async (req, res) => {
     [email]
   );
 
-  if (userExists.rows.length) {
-    if (userExists.rows[0].role != role) {
-      return res
-        .status(401)
-        .json({
-          success: false,
-          message: `You don't have a permission as ${role}`,
-        });
-    }
-
-    bcrypt.compare(
-      password,
-      userExists.rows[0].password,
-      function (err, response) {
-        if (response) {
-          // console.log(userExists.rows)
-          return res.status(201).json({
-            role: userExists.rows[0].role,
-            username: userExists.rows[0].username,
-            email: userExists.rows[0].email,
-            pic: userExists.rows[0].pic,
-            token: generateToken({email:userExists.rows[0].email,role:userExists.rows[0].role}),
-          });
-        } else {
-          console.log(err);
-          return res
-            .status(401)
-            .json({ success: false, message: "Invalid Password" });
-        }
-      }
-    );
-  } else
+  if (!userExists.rows.length) {
     return res
       .status(400)
       .json({ success: false, message: "Login failed User not found" });
+  }
+
+  // Check the password before revealing anything about the account's role,
+  // so a wrong-role login attempt can't be used to fingerprint which role
+  // an email is registered under.
+  bcrypt.compare(
+    password,
+    userExists.rows[0].password,
+    function (err, response) {
+      if (!response) {
+        console.log(err);
+        return res
+          .status(401)
+          .json({ success: false, message: "Invalid Password" });
+      }
+
+      if (userExists.rows[0].role != role) {
+        return res
+          .status(401)
+          .json({
+            success: false,
+            message: `You don't have a permission as ${role}`,
+          });
+      }
+
+      return res.status(201).json({
+        role: userExists.rows[0].role,
+        username: userExists.rows[0].username,
+        email: userExists.rows[0].email,
+        pic: userExists.rows[0].pic,
+        token: generateToken({email:userExists.rows[0].email,role:userExists.rows[0].role}),
+      });
+    }
+  );
 };
 
 const authRole = async (req, res) => {

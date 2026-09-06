@@ -1,28 +1,39 @@
 # OSP — Online Scholarship Portal: Technical Map
 
-**What it is:** A full-stack scholarship application portal built for a database-systems course at DA-IICT by a 9-person team. Students register, build a detailed profile (10+ normalized tables), upload 8 required PDF documents, browse scholarships, apply, and track application status. Admins CRUD scholarships, review applicants, and update application statuses.
+**What it is:** A full-stack scholarship application portal, originally built for a database-systems course at DA-IICT (now DAU) by a 9-person team, since substantially hardened and deployed to production. Students register, build a detailed profile (10+ normalized tables), upload 8 required PDF documents, browse scholarships, apply, and track application status. Admins CRUD scholarships, review applicants, and update application statuses.
+
+**This document reflects the codebase as of the security/stability/naming remediation pass described in §15 — before any Google OAuth work.** If you're reading this after OAuth lands, the auth sections need a fresh pass.
 
 **Physical layout:**
 ```
 OSP/
-├── server/                 # Node/Express backend
-│   ├── server.js           # entry point
-│   ├── config/             # db pool, JWT, multer
-│   ├── controller/         # 25 controllers
-│   ├── middleware/         # admin auth guard
-│   ├── Routes/             # 3 route modules
-│   └── uploads/            # multer disk temp
-└── client/            # React 18 SPA
-    └── src/context, components/{Admin, Apply, LoginRegister, Profile, Navbar, Faqs, middleware}
-Documentation/              # SRS, black-box/UAT/non-functional PDFs, GUI .side files, unit tests
-Labs/                       # 6 lab PDFs
+├── server/                    # Node/Express backend
+│   ├── server.js              # entry point
+│   ├── config/                # db pool, JWT, multer, cloudinary
+│   ├── controller/            # ~25 controllers, one file per concern
+│   ├── middleware/            # authMiddleware, adminMiddleware, logger, errorMiddleware
+│   ├── Routes/                # userRoutes, scholarshipRoutes, resetPassRoutes
+│   ├── migrations/            # node-pg-migrate, applied manually (never in CI)
+│   ├── schema.sql             # reference snapshot only -- destructive, never run again
+│   └── uploads/                # multer's transient disk buffer before Cloudinary
+└── client/                    # React 18 SPA (CRA)
+    └── src/
+        ├── context/            # UserProvider (auth state)
+        ├── hooks/              # shared useFetch
+        ├── utils/              # getStoredUserInfo (safe localStorage read)
+        └── components/{Admin, Apply, LoginRegister, Profile, Navbar, Faqs, middleware}
+docs/superpowers/               # design specs + implementation plans (this remediation, future features)
+.github/workflows/ci.yml        # builds + syntax-checks on every push/PR
+render.yaml                     # Render Blueprint (backend)
+Documentation/                  # SRS, black-box/UAT/non-functional PDFs, GUI .side files
+Labs/                           # 6 lab PDFs
 ```
 
 ---
 
 ## 1. Frontend Architecture
 
-**Stack:** React 18 + React Router v6 + Tailwind CSS (with Flowbite & Material Tailwind) + react-toastify + fetch/axios. CRA (`react-scripts`), no build customization.
+**Stack:** React 18 + React Router v7 + Tailwind CSS (+ Flowbite, Material Tailwind) + react-toastify + `fetch`. CRA (`react-scripts`), no build customization.
 
 **Entry chain:** `index.js` → `BrowserRouter` → `UserProvider` (context) → `App.js` (all `<Routes>`).
 
@@ -32,26 +43,26 @@ Labs/                       # 6 lab PDFs
 |---|---|---|
 | `/` | `LoginRegister.jsx` | none |
 | `/forgot-password` | `ForgotPassword.jsx` | none |
-| `/faqs` | `faqs.jsx` | none |
+| `/faqs` | `Faqs.jsx` | none |
 | `/student` | `Scholarship.jsx` → `StudentDashboard.jsx` | `StudentRoute` |
-| `/student/scholarship` | `Apply_Dashboard.jsx` | `StudentRoute` |
-| `/student/viewscholarship/:id` | `viewScholarshipStudent.jsx` | `StudentRoute` |
+| `/student/scholarship` | `ApplyDashboard.jsx` | `StudentRoute` |
+| `/student/viewscholarship/:id` | `ViewScholarshipStudent.jsx` | `StudentRoute` |
 | `/student/profile` | `Profile.jsx` | `StudentRoute` |
-| `/admin` | `Admin.jsx` → `Admin_Dashboard.jsx` | `PrivateRoute` |
+| `/admin` | `Admin.jsx` → `AdminDashboard.jsx` | `PrivateRoute` |
 | `/admin/add-scholarship` | `AddScholarship.jsx` | `PrivateRoute` |
-| `/admin/viewscholarship/:id` | `viewScholarship.jsx` | `PrivateRoute` |
-| `/admin/edit-scholarship/:id` | `editScholarship.jsx` | `PrivateRoute` |
+| `/admin/viewscholarship/:id` | `ViewScholarship.jsx` | `PrivateRoute` |
+| `/admin/edit-scholarship/:id` | `AdminEditScholarship.jsx` | `PrivateRoute` |
 | `/admin/list-scholarships` | `ListofScholarship.jsx` | `PrivateRoute` |
-| `/scholarships/:id/applicants` | `viewapplicants.jsx` | `PrivateRoute` |
+| `/scholarships/:id/applicants` | `ViewApplicants.jsx` | `PrivateRoute` |
 | `/applicant-details/:id/:sid` | `ApplicantsData.jsx` | `PrivateRoute` |
 | `/admin/profile` | `AdminProfile.jsx` | `PrivateRoute` |
 
 **Component call graph:**
-- `Scholarship.jsx` = Navbar + `StudentDashboard`
-- `Admin.jsx` = NavbarAdmin + `Admin_Dashboard`
-- `Profile.jsx` composes 7 sub-forms: `PersonalDetails`, `CommunicationAddress`, `BankDetails`, `CurrentAcademicDetails`, `Class10Details`, `Class12Details`, `CurrentEducationDetails`, all sharing one `FileUpload.jsx` widget and lifting state up to `Profile.jsx`.
+- `Scholarship.jsx` = `StudentNavbar` + `StudentDashboard`
+- `Admin.jsx` = `AdminNavbar` + `AdminDashboard`
+- `Profile.jsx` composes 7 sub-forms (`PersonalDetails`, `CommunicationAddress`, `BankDetails`, `CurrentAcademicDetails`, `Class10Details`, `Class12Details`, `CurrentEducationDetails`), all sharing one `FileUpload.jsx` widget and lifting state up to `Profile.jsx`'s single `formData` object. It also auto-saves a local draft to `localStorage` 2 seconds after typing stops, merged back in on next load (a local safety net, not synced to the server).
 
-**Data-fetching pattern:** a hand-rolled `useFetch.js` hook (copied twice, identical, in `Admin/` and `Apply/`) reads the JWT from localStorage and adds `Authorization: Bearer`. But most components bypass it and call `fetch()` directly with hardcoded URLs (`https://group7-osp.onrender.com/...`). There is no axios client config, no API service layer — API calls are scattered inline.
+**Data-fetching pattern:** one shared `src/hooks/useFetch.js` hook reads the JWT via `getStoredUserInfo()` and adds `Authorization: Bearer`. The API base URL is `process.env.REACT_APP_API_URL`, read once in `UserProvider` — no more hardcoded production URLs scattered through components. There is still no axios client / API service layer; most calls are inline `fetch()`.
 
 ---
 
@@ -62,199 +73,186 @@ Labs/                       # 6 lab PDFs
 **Entry (`server.js`):**
 ```js
 app.use(express.json());
-app.use(cors({ origin: "https://group7-osp.vercel.app" }));  // locked to prod frontend
+app.use(cors({ origin: process.env.FRONTEND_URL || "http://localhost:3000" })); // env-driven, not hardcoded
+app.use(requestLogger);            // logs every request, redacts req.body.password
 app.use("/api/user", userRoutes);
 app.use("/api/scholarship", scholarshipRoutes);
 app.use("/api/passwordreset", resetPassRoute);
-app.listen(port || 8080)
+app.use(errorHandler);             // catches everything the controllers throw/pass to next()
+app.listen(port || 8080);
 ```
-No `helmet`, no rate limiting, no error-handling middleware, no request logging beyond `console.log`.
+Still no `helmet`, no rate limiting.
 
-**Layering:** Routes → Controllers → `config/db.js` pool. Middleware (`protect`) only on the scholarship route module. The `user` routes are almost entirely unprotected (see §7).
+**Layering:** Routes → Controllers → `config/db.js` pool. No service/repository layer — controllers contain SQL directly.
 
 ---
 
 ## 3. Database Connection (`config/db.js`)
 
 ```js
-const { Pool } = require("pg");
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: true,          // required for Render-managed Postgres
+  ssl: { rejectUnauthorized: false },
+  max: 10,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000,
 });
+pool.on("error", (err) => console.error("Unexpected error on idle PostgreSQL client:", err));
+pool.connect().then((client) => { console.log("Database is successfully Connected"); client.release(); });
 ```
-- A single shared `pg.Pool` singleton; every controller imports it. One connection pool, no `searchPath` set (all SQL hardcodes the `osp.` schema prefix).
-- A `.connect()` is fired at import time just to log "Database is successfully Connected" — a wasted connection but harmless.
-- The file still contains a commented-out block of hardcoded college-VPN credentials (`10.100.71.21`, user/password) — should not be in a shared repo.
-- **No connection pooling config, no idle timeout tuning, no `pool.on('error')` handler** — if the DB drops the connection, the process has no recovery path.
+Single shared `pg.Pool`, imported by every controller. `pool.on('error')` matters here specifically: node-postgres documents that an error on an otherwise-idle client (e.g. Supabase's pooler dropping a stale connection) is an **uncaught event without this handler — it crashes the whole process**. The startup `.connect()` call now releases its client instead of holding one connection for the process's entire lifetime.
+
+**Production quirk worth knowing:** `DATABASE_URL` points at Supabase's **session pooler** (`...pooler.supabase.com:5432`), not the direct `db.<ref>.supabase.co` host. The direct host resolves to an IPv6-only address, and Render's outbound network doesn't support it — this manifested as `ENETUNREACH` in production until traced to the pooler swap.
+
+**Schema is now migration-managed**, not `schema.sql` (which starts with `DROP SCHEMA ... CASCADE` and would destroy production data if run again). `migrations/1_baseline_schema.sql` is an idempotent (`CREATE ... IF NOT EXISTS`) snapshot of what's already live; every change after it is its own numbered file. Run manually — `npm run migrate up -- --schema osp` — never automatically in CI, since there's no staging environment to catch a bad migration first.
 
 ---
 
 ## 4. Route Files
 
-**`Routes/userRoutes.js`** (mounted at `/api/user`) — largely **no auth middleware**. Maps:
-- `POST /register` → `registerUser`
-- `POST /login` → `authUser`
-- `POST /authRole` → `authRole`
-- `GET /getuserprofile` → `getUserProfile` (query param email)
-- `POST /updateuserprofile` → `updateUserProfile`
-- `GET /viewscholarship/:scholarship_id` → `getScholarship`
-- `GET /getlistofscholarships` → `getListOfScholarships`
-- `GET /getlistforApplyscholarships` → `getListforApplyscholarships`
-- `POST /applyForScholarship/:scholarship_id` → `applyForScholarship`
-- `GET /getAppliedScholarships` → `getAppliedScholarships` (email from **header**)
-- `GET /getApplicantId` → `getApplicantId` (email from **header**)
-- `GET /getemail/:email`, `GET /getprofile/:email`, `GET /getpdfurls/:email`, `POST /profile`, `POST /clearpdf/:email/:id`, `POST /pdf/:email/:key` (with `upload.single("file")`)
+**`Routes/userRoutes.js`** (mounted at `/api/user`):
 
-**`Routes/scholarshipRoutes.js`** (mounted at `/api/scholarship`) — **all protected** by `protect`:
-- `POST /addScholarship`, `GET /getScholarships`, `GET /:scholarship_id`, `PUT /editScholarship/:scholarship_id`, `DELETE /deleteScholarship/:scholarship_id`
-- `GET /getApplicantData`, `PUT /statusUpdate`
-- **Exception:** `GET /:id/applicants` → `getApplicantsByScholarshipId` has **no** `protect` (line 35).
+| Route | Auth | Notes |
+|---|---|---|
+| `POST /register` | public | domain/role validated server-side; role always `"student"` |
+| `POST /login` | public | password checked *before* role, so a wrong-role attempt can't fingerprint an email's real role |
+| `POST /authRole` | **JWT required** | re-confirms an existing session's role from a verified token (see §8 — this was a critical hole until fixed) |
+| `GET /getuserprofile`, `POST /updateuserprofile` | JWT + admin | identity comes from `req.user`, not a client-supplied email |
+| `GET /documents/view/:studentEmail/:documentType` | JWT | self-or-admin check in the controller; issues a 15-minute signed Cloudinary URL |
+| `GET /getApplicantId`, `GET /getAppliedScholarships` | JWT | identity from `req.user.email`, not a client header |
+| `GET /viewscholarship/:id`, `GET /getlistofscholarships`, `GET /getlistforApplyscholarships` | JWT | |
+| `POST /applyForScholarship/:id` | JWT | `applicant_id` derived server-side from the token, never trusted from the body |
+| `GET /getemail/:email`, `GET /getprofile/:email`, `GET /getpdfurls/:email`, `POST /clearpdf/:email/:id` | JWT | self-or-admin check (`req.user.role === "admin" \|\| req.user.email === email`) |
+| `POST /profile` | JWT | same self-or-admin check, keyed on the body's `email` |
+| `POST /pdf/:email/:key` | JWT | same check, plus real PDF content validation (see §9) |
 
-**`Routes/resetPassRoute.js`** (mounted at `/api/passwordreset`):
-- `POST /` → `emailSender`, `POST /verify` → `validateOTP`, `POST /setnewpassword` → `setPassword`. All public.
+**`Routes/scholarshipRoutes.js`** (mounted at `/api/scholarship`) — every route requires `protect`; admin-only ones also require `requireAdmin`: `addScholarship`, `editScholarship/:id`, `deleteScholarship/:id`, `getApplicantData`, `statusUpdate`, `:id/applicants`. `getScholarships` and `:scholarship_id` are shared (any logged-in role).
 
-Note the duplicated controller imports across route files (e.g., `getScholarship` imported in both `userRoutes.js` and `scholarshipRoutes.js`) — the same handler is reachable under two URLs with different auth levels. That's an accidental **privilege inconsistency**: `GET /api/user/viewscholarship/:id` is public while `GET /api/scholarship/:id` is admin-only.
+**`Routes/resetPassRoutes.js`** (mounted at `/api/passwordreset`) — all public, by design: `POST /` (request OTP), `POST /verify`, `POST /setnewpassword`.
+
+**One remaining duplicate worth knowing:** `getScholarship` is reachable at both `GET /api/user/viewscholarship/:id` and `GET /api/scholarship/:id` — same handler, two URLs, harmless today since both just require a valid login, but a naming/maintenance smell (see §16).
 
 ---
 
-## 5. Controller Files (all in `server/controller/`)
+## 5. Controller Files (`server/controller/`)
 
-| Controller | Function | Purpose |
+| Controller | Exports | Purpose |
 |---|---|---|
-| `registerUser.js` | `registerUser` | Signup, bcrypt hash, default role `student`, returns JWT |
-| `authUser.js` | `authUser`, `authRole` | Login; role re-verification used by frontend guards |
-| `resetPass.js` | `emailSender`, `validateOTP`, `setPassword` | OTP password reset |
-| `getUserProfile.js` | `getUserProfile`, `updateUserProfile` | Admin profile read/rename |
-| `addScholarship.js` | `addScholarship` | Insert scholarship |
-| `getScholarships.js` | `getScholarships` | List with applicant counts |
-| `getScholarship.js` | `getScholarship` | Detail by id |
-| `editScholarship.js` | `editScholarship` | Update scholarship |
-| `deleteScholarship.js` | `deleteScholarship` | Manual cascade delete |
-| `ApplicantController.js` | `getListOfScholarships`, `getApplicantsByScholarshipId` | Student list + admin applicant list |
-| `getApplicantsData.js` | `getApplicantData` | Full applicant detail (6-table join) |
-| `getApplicantId.js` | `getApplicantId` | Lookup applicant_id by email header |
-| `getAppliedScholarships.js` | `getAppliedScholarships` | Student's applied list (NATURAL JOIN) |
-| `getListforApplyScholarships.js` | `getListforApplyScholarships` | Simple scholarship list |
-| `applyForScholarship.js` | `applyForScholarship` | Insert into `applied_in` |
-| `statusUpdate.js` | `statusUpdate` | Update application status |
-| `fetchprofile.js` | `fetchprofile` | 10-table JOIN to reconstruct student profile |
-| `userprofile.js` | `handelprofiledata` | Massive multi-upsert profile save |
-| `uploadpdfs.js` | `handeluploads` | Multer→Cloudinary→DB document upload |
-| `handelpdfurls.js` | `handelpdfurls` | Read 8 document URLs |
-| `handelclearpdf.js` | `handelclearpdf` | Null-out a document column |
-| `handelemail.js` | `handelemail` | Does an applicant row exist for email |
-| `cloud.js` | `cloudinary` | **Dead code** — unused second Cloudinary config with hardcoded secrets |
+| `registerUser.js` | `registerUser` | Signup, bcrypt hash, domain check, `RETURNING`-based insert, correct JWT claims |
+| `authUser.js` | `authUser`, `authRole` | Login; session re-confirmation (now JWT-gated) |
+| `resetPass.js` | `emailSender`, `validateOTP`, `setPassword` | OTP password reset, expiry enforced at both check points |
+| `getUserProfile.js` | `getUserProfile`, `updateUserProfile` | Admin's own profile read/rename, identity from JWT |
+| `addScholarship.js` / `getScholarships.js` / `getScholarship.js` / `editScholarship.js` / `deleteScholarship.js` | one each | Scholarship CRUD; delete is transactional |
+| `scholarshipListings.js` | `getListOfScholarships`, `getApplicantsByScholarshipId` | Student list + admin applicant list (bundled in one file — a naming/organization leftover, see §16) |
+| `getApplicantsData.js` | `getApplicantsData` | Full applicant detail (6-table join), admin-only |
+| `getApplicantId.js` | `getApplicantId` | Applicant ID lookup, identity from JWT |
+| `getAppliedScholarships.js` | `getAppliedScholarships` | Student's applied list (`NATURAL JOIN`, still fragile — see §16) |
+| `getListforApplyScholarships.js` | `getListForApplyScholarships` | Simple scholarship list for the apply flow |
+| `applyForScholarship.js` | `applyForScholarship` | Server-derives `applicant_id`; validates income/CGPA/education-level/eligible-courses |
+| `statusUpdate.js` | `statusUpdate` | State-machine-guarded status transitions + email notification |
+| `fetchprofile.js` | `fetchprofile` | 10-table JOIN to reconstruct a student profile, self-or-admin gated |
+| `profileUpsert.js` | `handleProfileData` | Transactional multi-table profile upsert (see §9) |
+| `uploadpdfs.js` | `handeluploads` | Multer → magic-byte check → Cloudinary → DB, orphan cleanup on replace |
+| `handlePdfUrls.js` | `handlePdfUrls` | Read 8 document URLs, self-or-admin gated |
+| `handleClearPdf.js` | `handleClearPdf` | Null a document column *and* delete the Cloudinary asset |
+| `handleEmail.js` | `handleEmail` | Existence check for an applicant email, self-or-admin gated |
+| `viewDocument.js` | `getSecureDocumentUrl` | Generates a 15-minute signed Cloudinary URL; the pattern the other IDOR fixes were modeled on |
 
 ---
 
 ## 6. Middleware
 
-**Server (`middleware/authMiddleware.js`)** — the only middleware, `protect`:
+**`middleware/authMiddleware.js`** (`protect`):
 1. Reads `Authorization: Bearer <token>`.
 2. `jwt.verify(token, process.env.token_api)`.
-3. Runs `SELECT * FROM osp.users WHERE email = '${decoded.email}'` — **string-interpolated** (SQLi surface).
-4. Grants access **only if** `req.user.role === "admin"` (so `protect` = *admin-only*; there is no student variant on the server).
+3. `SELECT id, username, email, role, pic FROM osp.users WHERE email = $1` — **parameterized**, and explicitly excludes the password column.
+4. Attaches the row to `req.user` and calls `next()`. Any authenticated route (student or admin) uses this; admin-only routes additionally chain `requireAdmin`.
 
-**Client (`components/middleware/`)** — `protectRoute.js` (admin) and `studentRoute.js` (student) are **near-identical copies**. Both:
-- Read `userInfo` from localStorage; if absent → redirect `/`.
-- If the `roleChecked` localStorage flag isn't set, call `POST /api/user/authRole` with `{email, role}` from localStorage and the JWT in the header, set `roleChecked=true` on success, else clear storage and redirect.
+**`middleware/adminMiddleware.js`** (`requireAdmin`) — one-liner: `req.user.role === "admin"` or `403`.
 
-**Critical flaw:** the server `authRole` controller **ignores the JWT entirely** — it only does `SELECT * FROM osp.users WHERE email='${body.email}'` and checks whether the body `role` equals the DB role. It then issues a fresh signed JWT. So route protection fundamentally reduces to "does the attacker know an admin's email and guess `role:"admin"`." Combined with the "no admin registration anywhere in the app" fact (admins must be seeded manually in SQL), this is a real auth design weakness.
+**`middleware/logger.js`** / **`middleware/errorMiddleware.js`** — request logging (redacts `password` in logged bodies) and a catch-all error handler that only includes stack traces when `NODE_ENV === "development"`.
+
+**Client (`components/middleware/`)** — `protectRoute.js` (admin) and `studentRoute.js` (student), still near-identical: read `userInfo` from `localStorage`, and unless `roleChecked` is already cached, call `POST /api/user/authRole` with the JWT and check the *returned* role against what the guard expects.
 
 ---
 
 ## 7. Authentication
 
-**Token:** `jwt.sign({ email, role }, process.env.token_api, { expiresIn: "30d" })` (`config/generateToken.js`). 30-day expiry, no refresh, no logout/blacklist server-side (logout just deletes localStorage).
+**Token:** `jwt.sign({ email, role }, process.env.token_api, { expiresIn: "30d" })`. 30-day expiry, no refresh, no server-side logout (client just clears `localStorage`).
 
-**Password hashing:** `bcryptjs` with salt rounds = 10.
+**Password hashing:** `bcryptjs`, 10 salt rounds.
 
-**Registration (`registerUser.js`):** validates fields → checks duplicate email (`SELECT ... WHERE email=$1` parameterized) → hashes → `INSERT INTO osp.users (username, email, password, role) VALUES ($1,$2,$3,$4)` with role hardcoded `"student"` → then re-selects the user **by username using string interpolation** (`WHERE username='${username}'`) and returns a token.
+**Registration (`registerUser.js`):** validates fields → domain check → duplicate-email check (parameterized) → hash → `INSERT ... RETURNING id, username, role, email, pic` → signs the token from the *returned row* (`email`, not `id` — this used to be a real bug: the token's `email` claim was set to the new user's numeric ID, so `authMiddleware`'s `WHERE email = $1` lookup would fail on their very first session).
 
-> **Bug (token payload):** `registerUser.js:56` signs `generateToken({ email: user.rows[0].id, role })` — the "email" claim is actually the numeric user `id`. The `authMiddleware` then does `WHERE email = '${decoded.email}'` (id vs email) → the token from *registration* is unusable against `protect`. In practice the client discards it (forces re-login after signup), so it's latent, but it's a genuine contract bug.
+**Login (`authUser.js`):** parameterized lookup → **password checked before role** (previously role was checked first, which let a wrong-role attempt confirm which role an email was registered under before any password was verified) → returns `{role, username, email, pic, token}`.
 
-**Login (`authUser.js`):** interpolated `SELECT * FROM osp.users WHERE email='${email}'` → verifies requested `role` matches DB row → `bcrypt.compare`. Returns `{role, username, email, pic, token}`.
+**Session re-confirmation (`authRole`):** now requires the same `protect` middleware as everything else and reads only `req.user` — never the request body. **Until fixed, this endpoint was a complete authentication bypass:** it took `{email, role}` straight from an unauthenticated POST body and issued a real signed JWT if they matched a DB row, no password involved. Knowing (or guessing) an admin's email — such as the actual seeded `admin1@osp.local` — was enough to obtain a valid admin session. The frontend already sent the real JWT on every call; the fix was making the server actually check it.
 
-**Role checks:** every protected admin endpoint is gated by `protect`. The entire student API surface is ungated.
+**What's still true:** there is no self-service admin registration path (`registerUser.js` hardcodes `role: "student"`) — admin rows are provisioned by direct DB access, outside the app. `protect` grants access to *any* authenticated role; `requireAdmin` is what actually restricts to admins.
 
 ---
 
 ## 8. PostgreSQL Usage
 
-- **Driver:** `pg` Pool, schema `osp.`.
-- **~15 tables** (documented in `OSP_Documentation.md` §4): `users`, `Scholarships`, `applicants`, `addresses`, `districts`, `states`, `Bank_Details`, `IFSC_Details`, `Education_Details`, `Departments_with_Programs`, `class10_details`, `class12_details`, `Applied_in`, `applicant_documents`, `forgot_pass`.
-- **Normalized to ~3NF:** addresses→districts→states, bank→IFSC, education→departments, applicants referencing all of them.
+- **Driver:** `pg` Pool, schema `osp`.
+- **~16 tables**, 3NF-normalized: `users`, `scholarships`, `applicants`, `addresses`→`districts`→`states`, `bank_details`→`ifsc_details`, `education_details`→`departments_with_programs`, `class10_details`, `class12_details`, `applied_in`, `received_from`, `applicant_documents`, `forgot_pass`, plus `pgmigrations` (migration tracking).
+- Indexed on every foreign key and on `applied_in.status` (see `migrations/1_baseline_schema.sql` for the full list).
 
-**Notable SQL worth memorizing:**
+**Queries worth being able to draw from memory:**
 
-1. **Applicant detail join** (`getApplicantsData.js:10-63`) — 6-table LEFT JOIN (applicants → addresses → districts → education_details → applied_in → applicant_documents) keyed by applicant_id + scholarship_id. This is the "admin sees everything about a student" query.
-
-2. **Profile reconstruction** (`fetchprofile.js:8-71`) — the single largest query: 10-table JOIN (applicants, users, addresses, districts, states, Bank_Details, IFSC_Details, Education_Details, Departments_with_Programs, class10, class12).
-
-3. **Profile write** (`userprofile.js`) — *insert-or-select* pattern per entity (states → districts → addresses → IFSC → bank → dept → education), then `INSERT INTO osp.applicants ... ON CONFLICT (email) DO UPDATE SET ... RETURNING applicant_id`, then same upsert pattern for class10/class12.
-
-4. **Document upsert** (`uploadpdfs.js:67-72`) — `INSERT INTO osp.applicant_documents (email, ${column}) VALUES ($1,$2) ON CONFLICT (email) DO UPDATE SET ${column} = EXCLUDED.${column}`.
-
-5. **Scholarship list with counts** (`getScholarships.js:8-24`) — `LEFT JOIN applied_in ... GROUP BY ... COUNT(applicant_id) ORDER BY applicants_count DESC`.
-
-6. **Applied list** (`getAppliedScholarships.js:8-26`) — `NATURAL JOIN` across 4 tables filtered by `u.email = $1`. NATURAL JOIN auto-joins on every shared column name, which is fragile.
-
-7. **Status update** (`statusUpdate.js:13-16`) — simple `UPDATE osp.applied_in SET status = $1 WHERE applicant_id = $2 AND scholarship_id = $3`.
-
-8. **Manual cascade delete** (`deleteScholarship.js:19-22`) — delete `applied_in` rows first, then the scholarship (no FK `ON DELETE CASCADE` relied on).
+1. **Profile write (`profileUpsert.js`)** — all 7 dependent-table steps (state, district, address, IFSC, bank, department, education) are now single-round-trip `INSERT ... ON CONFLICT (unique_cols) DO UPDATE ... RETURNING id` upserts (states/districts/departments/education needed new `UNIQUE` constraints added via migration to support this; IFSC/bank were already keyed on their natural primary key). The whole thing runs inside one `BEGIN`/`COMMIT`/`ROLLBACK` transaction on a dedicated `client` from the pool — a partial failure can't leave a half-written profile. This used to be up to 14 sequential queries (2 per step, worst case); it's now 7.
+2. **Profile read (`fetchprofile.js`)** — the single largest query: a 10-table `LEFT JOIN` reconstructing the whole profile in one round trip, gated so only the owning student or an admin can call it.
+3. **Applicant detail (`getApplicantsData.js`)** — 6-table `LEFT JOIN` keyed by `applicant_id` + `scholarship_id`; admin-only, parameterized.
+4. **Document upsert (`uploadpdfs.js`)** — `INSERT INTO applicant_documents (email, ${column}) VALUES ($1,$2) ON CONFLICT (email) DO UPDATE SET ${column}=EXCLUDED.${column}` — `${column}` is always resolved through a fixed whitelist object, never client input directly.
+5. **Scholarship list with counts (`getScholarships.js`)** — paginated `LEFT JOIN applied_in ... GROUP BY ... COUNT() ORDER BY applicants_count DESC`; the count query and the data query run in parallel via `Promise.all` rather than sequentially.
+6. **Applied list (`getAppliedScholarships.js`)** — still a `NATURAL JOIN` across 4 tables; works today but is fragile (auto-joins on *every* shared column name, so adding a same-named column to any of the 4 tables would silently change the join).
+7. **Status update (`statusUpdate.js`)** — a state-machine (`Pending → Under Review → Documents Verified → Accepted/Rejected`) validated server-side before the `UPDATE`; the status-and-notification-details lookup was collapsed from 2 queries into 1 `JOIN`.
+8. **Scholarship delete (`deleteScholarship.js`)** — now wrapped in an explicit transaction (`BEGIN`/delete from `applied_in`/delete the scholarship/`COMMIT`, `ROLLBACK` on any failure) — previously two independent `pool.query()` calls, so a failure between them could delete every application for a scholarship while the scholarship row itself survived.
 
 ---
 
 ## 9. File Upload Flow
 
-**Client (`Profile.jsx` `handlePdfUpload` + `FileUpload.jsx`):**
-1. `<input type="file" accept="application/pdf">` → `new FormData().append("file", file)`.
-2. `POST /api/user/pdf/${email}/${key}` with the raw FormData, **no auth header**.
-3. On success, stores the returned `cloudinaryUrl` into local state (`cloudinaryUrls`).
+**Client (`Profile.jsx` + `FileUpload.jsx`):** `<input type="file" accept="application/pdf">` → `FormData` → `POST /api/user/pdf/:email/:key` with the JWT attached.
 
-**Server (`config/multer.js` + `controller/uploadpdfs.js`):**
-1. `multer.diskStorage` writes to `uploads/` with filename `` `${Date.now()}-${file.originalname}` `` — **no file type filter, no size limit, no filename sanitization**.
-2. `uploadOnCloudinary` uploads the local path with `resource_type: "raw"`, then `fs.unlinkSync(localFilePath)`.
-3. Maps the URL-param `key` → DB column via a whitelist object (good — prevents column-injection).
-4. Upserts the Cloudinary URL into `applicant_documents`.
-5. **Clear flow:** `POST /clearpdf/:email/:id` → `UPDATE ... SET column = null`.
-
-**Why two Cloudinary configs exist:** `uploadpdfs.js` configures account `ospproject7` (used); `cloud.js` configures a *different* account `dx5gwfetc` and is never imported — leftover/dead code with secrets hardcoded in both.
+**Server (`config/multer.js` + `uploadpdfs.js`):**
+1. `multer.diskStorage` writes to an **absolute** `uploads/` path resolved relative to the server file (not the process's working directory), created automatically if missing — filenames sanitized and timestamp-prefixed.
+2. The controller checks the requester is the account owner or an admin, then verifies the file actually **starts with the PDF magic bytes** (`%PDF-`) — multer's `fileFilter` alone only checks the client-supplied MIME type, which is trivially spoofed.
+3. Uploads to Cloudinary as `resource_type: "image"`, `type: "private"` (inaccessible on the public internet by URL alone).
+4. Whatever was previously stored for that document slot is looked up *before* the upload and deleted from Cloudinary *after* a successful replace — previously every re-upload orphaned the old file, a quietly growing storage cost.
+5. **Viewing a document** goes through `viewDocument.js`'s `getSecureDocumentUrl`, which generates a 15-minute signed Cloudinary URL rather than exposing a permanent one.
+6. **Clearing a document** (`handleClearPdf.js`) nulls the DB column *and* calls `cloudinary.uploader.destroy()` — previously only the DB pointer was cleared, permanently orphaning the file.
 
 ---
 
 ## 10. Password Reset Flow
 
-1. **Request OTP** — `ForgotPassword.jsx` → `POST /api/passwordreset/` `{email}` → `emailSender`: verifies user exists → `generateOTP()` (6-digit `Math.random`) → bcrypt-hashes OTP → upsert into `forgot_pass (email, otp, created_at)` → sends styled HTML email via Nodemailer Gmail SMTP.
-2. **Verify OTP** — `POST /api/passwordreset/verify` `{email, otp}` → `validateOTP`: fetches hashed OTP + `created_at`, `bcrypt.compareSync`. **The 10-minute expiry check is commented out here** (`resetPass.js:104-107`) — only enforced in step 3.
-3. **Set new password** — `POST /api/passwordreset/setnewpassword` `{email, otp, newPassword}` → `setPassword`: re-checks OTP + **10-min expiry** (`timeDifference > 600000`), hashes the new password, `UPDATE osp.users SET password = $1 WHERE email = $2`.
+1. **Request OTP** — `POST /api/passwordreset/` → verifies the user exists → generates a 6-digit OTP (`Math.random`, not a CSPRNG) → bcrypt-hashes it → upserts into `forgot_pass` → emails it via Nodemailer/Gmail SMTP.
+2. **Verify OTP** — `POST /verify` → `bcrypt.compareSync` → **10-minute expiry now enforced here too** (previously commented out, so "verify" could report an expired OTP as valid even though the final step still rejected it).
+3. **Set new password** — `POST /setnewpassword` → re-checks OTP + expiry → hashes → `UPDATE users SET password = $1`.
 
-**Weaknesses:** no rate limiting/lockout on `/verify` or `/setnewpassword` (6-digit OTP = 1M combos, unlimited guesses for 10 minutes), no token/session invalidation after reset, and `Math.random()` for OTP generation (not CSPRNG).
+**Known operational gotcha:** Gmail SMTP requires an **App Password** (only issuable once 2-Step Verification is on the sending account) — a stale/regenerated one fails with `535-5.7.8 Username and Password not accepted`, and because it fails inside a `try/catch` around `sendMail`, the OTP row is still written to the DB even though no email goes out; worth checking `forgot_pass` for a recent row when debugging a "nothing happened" report.
+
+**Still true:** no rate limiting on `/verify` or `/setnewpassword` (a 6-digit OTP is 1,000,000 combinations with unlimited guesses inside the 10-minute window), and `Math.random()` isn't cryptographically secure.
 
 ---
 
 ## 11. Frontend State Management
 
-**Context API only** (`src/context/userProvider.js`):
-- `user` state initialized from `localStorage.getItem("userInfo")`.
-- `baseURL` state = `"https://group7-osp.onrender.com"` (overrides the context's value in many components).
-- `setUser` exposed; `useContextState()` hook used throughout.
+**Context API only** (`src/context/userProvider.js`): `user` state seeded from `localStorage.getItem("userInfo")` via the shared `getStoredUserInfo()` helper (try/catch-guarded — a corrupted localStorage value used to have a chance to crash whichever component read it first); `baseURL` fixed once from `process.env.REACT_APP_API_URL`.
 
-**Persistence:** `localStorage` keys `userInfo` (JSON: `{role, username, email, pic, token}`) and `roleChecked` (bool). Session is a *client-side* concept; there's no server session. The `roleChecked` flag exists solely to avoid re-hitting `authRole` on every route change — but it's set to `"true"` after *login* too, so guards rarely re-verify.
-
-**Component-level state:** `Profile.jsx` holds one giant `formData` object and `cloudinaryUrls`/`pdfFiles` maps, passing setters down to 7 sub-forms. Validation state is 5 booleans threaded down as `setValidationErrorStatus` callbacks.
+**Persistence:** `localStorage` keys `userInfo` (`{role, username, email, pic, token}`) and `roleChecked`. Session is purely client-side — no server session store.
 
 ---
 
 ## 12. Deployment / Configuration
 
-- **Frontend:** Vercel → `https://group7-osp.vercel.app` (CRA build). No `vercel.json`, no env handling beyond CRA defaults.
-- **Backend:** Render → `https://group7-osp.onrender.com`. Runs `node server.js` (no `start` script in `package.json` — start command is set in Render's dashboard).
-- **Database:** cloud PostgreSQL (Render), `ssl: true`, `DATABASE_URL`.
-- **CORS** is hardcoded to the Vercel origin (`server.js:18`). Any other origin (including localhost dev) is blocked — you must edit and redeploy to develop locally.
-- **No Docker, no CI, no `.env.example`, no migration/seeding scripts** — the schema presumably lives in a lab PDF (see `Labs/`).
-- **README inconsistency worth knowing:** `README.md:154-157` claims *"Backend on AWS EC2, Database MongoDB on Atlas"* — this is stale/wrong; the actual stack is Render + Vercel + **PostgreSQL** (`OSP_Documentation.md` is the accurate source).
+- **Frontend:** Vercel (`osp-silk.vercel.app`), deployed via CLI (`vercel --prod`) — not GitHub-auto-deployed, so a push to `main` alone does **not** update it; you redeploy explicitly.
+- **Backend:** Render, provisioned from `render.yaml` (a Blueprint) — auto-deploys on every push to `main`. Free tier: the first request after inactivity takes 30-60s to wake up.
+- **Database:** Supabase Postgres, accessed via the **session pooler** connection string (see §3).
+- **CI:** GitHub Actions (`.github/workflows/ci.yml`) builds the frontend (`CI=true`, so ESLint warnings fail the build) and syntax-checks every backend file, on every push/PR to `main` — but doesn't gate either deploy; it runs in parallel, informationally.
+- **Migrations:** manual only (`npm run migrate up -- --schema osp`), deliberately never automated — no staging environment exists to catch a bad one first.
+- **No Docker.**
 
 ---
 
@@ -262,140 +260,127 @@ Note the duplicated controller imports across route files (e.g., `getScholarship
 
 | Var | Used by | Notes |
 |---|---|---|
-| `DATABASE_URL` | `config/db.js` | pg connection string, `ssl:true` |
+| `DATABASE_URL` | `config/db.js` | Supabase **session pooler** string, not the direct host |
 | `token_api` | `generateToken.js`, `authMiddleware.js` | JWT signing/verify secret |
-| `user` / `pass` | `resetPass.js` | Gmail SMTP app-password for Nodemailer |
+| `user` / `pass` | `resetPass.js` | Gmail address + App Password for Nodemailer |
 | `PORT` | `server.js` | defaults to 8080 |
+| `FRONTEND_URL` | `server.js` | CORS origin; must exactly match the deployed frontend's origin, no trailing slash |
+| `NODE_ENV` | `errorMiddleware.js` | `"development"` includes stack traces in error responses |
+| `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` | `config/cloud.js` | |
+| `REACT_APP_API_URL` (client) | `userProvider.js` | backend base URL |
 
-**Not env vars (hardcoded secrets — should be flagged):** Cloudinary `cloud_name/api_key/api_secret` in `uploadpdfs.js:7-9` and `cloud.js:5-7`; commented DB credentials in `db.js:8-13`.
-
----
-
-## 14. Important Dependencies
-
-**Backend (`server/package.json`):** `express`, `pg`, `bcryptjs`, `jsonwebtoken`, `cors`, `dotenv`, `multer`, `cloudinary`, `nodemailer`, `nodemon`. **Installed but unused:** `multer-storage-cloudinary` (uploads do manual `cloudinary.uploader.upload`), `moment`, `body-parser` (uses `express.json()`), `i` (the accidental npm package from running `npm i`). No `scripts` block at all.
-
-**Frontend (`client/package.json`):** `react@18`, `react-router-dom@6`, `react-scripts@5`, `tailwindcss@3.4` + `flowbite-react` + `@material-tailwind/react`, `react-toastify`, `axios` (only used in `AdminProfile.jsx`), `react-icons`, `react-notifications-component` (unused), `toastify` (unused). No lint/typecheck scripts beyond CRA defaults.
+All of the above are documented (names only, no values) in each app's `.env.example`.
 
 ---
 
-## Request → Controller → DB Flows (the 6 you must be able to walk through)
+## 14. Dependencies
+
+**Backend:** `express`, `pg`, `bcryptjs`, `jsonwebtoken`, `cors`, `dotenv`, `multer`, `cloudinary`, `nodemailer`. `nodemon` and `node-pg-migrate` are devDependencies (nodemon used to be a production dependency — harmless but wrong category). Still installed but unused: `multer-storage-cloudinary`, `moment`, `body-parser` (superseded by `express.json()`), `i` (an accidental package from a typo'd `npm i`).
+
+**Frontend:** `react@18`, `react-router-dom@7`, `react-scripts@5`, `tailwindcss@3.4` + `flowbite-react` + `@material-tailwind/react`, `react-toastify`, `react-icons`. Unused: `axios` (only one component ever used it, and no longer does), `react-notifications-component`, `toastify`, `easymde`/`react-simplemde-editor`/`react-markdown` (no markdown editing feature exists in the app).
+
+---
+
+## Request → Controller → DB Flows (walk through these fluently)
 
 ### Flow 1 — Login
-`LoginRegister.jsx handleLoginSubmit` → `POST /api/user/login` → `authUser.js` → `SELECT * FROM osp.users WHERE email='...'` → role-match check → `bcrypt.compare` → returns JWT → client stores in localStorage, sets `roleChecked=true`, navigates by role.
+`LoginRegister.jsx` → `POST /api/user/login` → `authUser.js` → parameterized lookup → password check → role check → JWT issued → client stores it, navigates by role.
 
 ### Flow 2 — Admin reviews a student
-`viewapplicants.jsx` → `GET /api/scholarship/:id/applicants` (no protect) → `ApplicantController.getApplicantsByScholarshipId` (INNER JOIN 3 tables) → `ApplicantsData.jsx` → `GET /api/scholarship/getApplicantData?id=&scholarship_id=` (protect) → `getApplicantsData` (6-table LEFT JOIN) → admin changes status → `PUT /api/scholarship/statusUpdate` (protect) → `UPDATE applied_in SET status=$1 WHERE applicant_id=$2 AND scholarship_id=$3`.
+`ViewApplicants.jsx` → `GET /api/scholarship/:id/applicants` (protect+admin) → `scholarshipListings.getApplicantsByScholarshipId` → `ApplicantsData.jsx` → `GET /api/scholarship/getApplicantData` (protect+admin) → `getApplicantsData` (6-table join) → status change → `PUT /api/scholarship/statusUpdate` (protect+admin) → state-machine-validated `UPDATE`.
 
 ### Flow 3 — Student applies
-`viewScholarshipStudent.jsx handleApply` → (client-side completeness check: profile saved + all 8 docs present) → `GET /api/user/getApplicantId` (email in header) → `SELECT applicant_id FROM osp.applicants WHERE email=$1` → `POST /api/user/applyForScholarship/:id` `{scholarship_id, applicant_id, applied_date, status:"Pending"}` → `INSERT INTO osp.applied_in (...) VALUES (...)` → duplicate → DB `23505` → client shows "already applied."
+`ViewScholarshipStudent.jsx` → `POST /api/user/applyForScholarship/:id` (JWT) → server derives `applicant_id` from the token → fetches scholarship requirements + applicant profile → validates income/CGPA/education-level/eligible-courses → `INSERT INTO applied_in` → duplicate → Postgres `23505` → "already applied."
 
-### Flow 4 — Profile save (biggest write path)
-`Profile.jsx handleSave` → `POST /api/user/profile` (no auth) → `userprofile.js handelprofiledata` → for each of states/districts/addresses/IFSC/bank/dept/education: `SELECT` then conditional `INSERT ... RETURNING id` → `INSERT INTO osp.applicants ... ON CONFLICT (email) DO UPDATE ...` → same upsert for `class10_details`/`class12_details`.
+### Flow 4 — Profile save
+`Profile.jsx` → `POST /api/user/profile` (JWT, self-or-admin gated) → `profileUpsert.handleProfileData` → one transaction: 7 upserts (state → district → address → IFSC → bank → department → education) → upsert into `applicants` → upsert `class10_details`/`class12_details` → `COMMIT` (or `ROLLBACK` on any failure).
 
 ### Flow 5 — Document upload
-`FileUpload.jsx` → FormData → `POST /api/user/pdf/:email/:key` → `multer` disk → `cloudinary.uploader.upload(resource_type:'raw')` → `fs.unlinkSync` → `INSERT ... ON CONFLICT (email) DO UPDATE` into `applicant_documents`.
+`FileUpload.jsx` → `POST /api/user/pdf/:email/:key` (JWT, self-or-admin gated) → multer disk buffer → magic-byte check → Cloudinary (private) → previous asset (if any) deleted → URL upserted into `applicant_documents`.
 
 ### Flow 6 — Password reset
-`ForgotPassword.jsx` → `POST /api/passwordreset/` → OTP gen/hash/store/send → `POST /verify` → bcrypt compare → `POST /setnewpassword` → expiry check + hash + `UPDATE osp.users SET password`.
+`ForgotPassword.jsx` → request OTP (hashed, stored, emailed) → verify (expiry-checked) → set new password (expiry re-checked, hashed, `UPDATE users`).
 
 ---
 
-## Bugs / Issues Inventory (the most important part for interviews)
+## 15. What Changed in the Remediation Pass (good "tell me about improving a legacy codebase" material)
 
-### Security (critical)
-1. **SQL injection via string interpolation** in `authUser.js:9,58`, `registerUser.js:47`, `getScholarship.js:7`, `deleteScholarship.js:19,22`, `getApplicantsData.js:61-62`, `authMiddleware.js:21`. Many queries *are* parameterized, but these aren't.
-2. **Hardcoded secrets:** Cloudinary keys/secrets in `uploadpdfs.js` + `cloud.js`, DB creds in `db.js` comments.
-3. **`authRole` ignores the JWT** — trusts body `email`+`role`; role-based access effectively depends on knowing an admin email. (`authUser.js:49-94`)
-4. **Whole student API is unauthenticated** — `applyForScholarship`, `getAppliedScholarships`, `getApplicantId`, `fetchprofile`, `handelpdfurls`, `clearpdf`, `pdf` all key off email in URL params or headers → **IDOR**: any user can read/overwrite any other student's profile and documents, or apply on their behalf.
-5. **No rate limiting anywhere** (login brute force, OTP brute force), no account lockout.
-6. **CAPTCHA is client-side only** (`generateCaptcha` in `LoginRegister.jsx`) — cosmetic.
-7. **No file-type/size validation** on upload (`multer.js`) — the `accept="application/pdf"` is client-only.
-8. **`protect` middleware only admits admins** — there's no server-side student guard at all.
-9. **Public exposure** of applicant names/statuses via `GET /api/scholarship/:id/applicants` (unprotected).
-10. **Token `email` claim bug** in `registerUser.js:56` (signs user id as email).
+This was one continuous pass across a deployed, already-live application with real user data — everything below was verified against the actual production database, not assumed.
 
-### Correctness bugs
-11. **Profile pre-fill broken (~20 fields):** backend `fetchprofile.js` returns camelCase keys (`mobileNumber`, `parentMobile`, `bankAccount`, `ifscCode`, `courseLevel`, `courseName`, `tuitionFees`, `class10Institute`, …) but `Profile.jsx:169-197` reads all-lowercase versions (`mobilenumber`, `parentmobile`, `bankaccount`, `ifsccode`, `tuitionfees`, …) → those fields come back empty on load.
-12. **`userprofile.js` swallows failures:** outer `catch {}` (line 362) and the inner async IIFE catch returns without sending any HTTP response → client fetch hangs until timeout; no transaction (the `BEGIN` is commented out, line 8) despite ~10 dependent writes → partial writes possible.
-13. **`MAX(ai.status)`** in `ApplicantController.js:13` returns lexicographically-highest status, not "latest" — wrong semantics.
-14. **NATURAL JOIN** (`getAppliedScholarships.js`) is fragile — silently joins on all shared column names.
-15. **OTP expiry check commented out** in `validateOTP` (`resetPass.js:104-107`).
-16. **`App.test.js`** is the CRA template test asserting the string "learn react" that doesn't exist → fails if run. The Jest/Mocha tests in `Documentation/Unit_Testing/` are not wired into any package.json and use imports that won't resolve from their location — demo artifacts, effectively non-runnable.
-17. **Duplicate `useFetch.jsx`** files (Admin + Apply) — identical copy-paste.
-18. **Hardcoded prod URLs** in ~10 components instead of the context `baseURL`; some components use the baseURL, others hardcode — inconsistent, breaks local dev.
+**Security (the critical-severity work):**
+- Two live SQL-injection points (`authUser.js`, `registerUser.js`) — string-interpolated queries next to correctly parameterized ones in the same file.
+- Nine broken-access-control (IDOR) endpoints where any authenticated user could read or modify another user's profile, bank details, or documents by changing an email in the URL — fixed by adding the self-or-admin check `viewDocument.js` already modeled correctly.
+- Two endpoints trusting a client-supplied identity header/body instead of the verified JWT (`getApplicantId`, `getAppliedScholarships`, `applyForScholarship`'s `applicant_id`).
+- **The most severe finding:** `authRole` was a complete authentication bypass — a public endpoint that minted a valid JWT for *any* `{email, role}` pair with zero password check, discovered while writing this document. Fixed by requiring the same JWT middleware every other route already used.
 
-### Scalability
-19. **No pagination** on any list (scholarships, applicants, applied).
-20. **N+1-ish chatty writes** in profile save (15 sequential queries per save; no transaction, no batch).
-21. Heavy `COUNT`/`GROUP BY` over `applied_in` with no documented indexes.
-22. Single `pg.Pool` with no pool tuning; per-request SQL without caching.
-23. Disk-based multer temp files on a serverless/hosted platform — no cleanup on crash.
+**Stability:** a leaked startup DB connection, a missing `pool.on('error')` handler (an unhandled version of which crashes the whole Node process on a dropped idle connection), and unbounded connection/idle timeouts.
+
+**Data integrity:** non-atomic scholarship deletion, a commented-out OTP expiry check, and an eligibility-parsing bug verified against live data (14/15 scholarships fine, one legacy row silently disabling the check).
+
+**Performance:** the profile-save path went from up to 14 sequential DB round trips to 7 single-round-trip upserts (backed by new `UNIQUE` constraints, added via a proper migration after checking live data for conflicts first).
+
+**Storage:** orphaned Cloudinary files on every document re-upload/clear, now cleaned up; PDF uploads now checked by actual file content, not just the client-claimed MIME type.
+
+**Naming & hygiene:** consistent file/function naming across both apps (typos, casing, a duplicated `useFetch.jsx`, two same-named `Navbar.jsx` files), all with zero changes to the actual API contract.
+
+**Infrastructure added from nothing:** git version control (the project was an un-versioned folder), a GitHub repo, Render + Vercel deployment, a CI workflow, and `node-pg-migrate` schema-migration tooling (the schema previously had no safe way to evolve once real data existed).
 
 ---
 
-## A. 30-Second Project Explanation
+## A. 30-Second Explanation
 
-"OSP is a scholarship application portal I built in a 9-person course team. It's a React SPA talking to a Node/Express REST API backed by a normalized PostgreSQL database. Students register, fill a multi-section profile spanning about 10 normalized tables, upload eight required PDFs to Cloudinary, browse and apply for scholarships, and track application status. Admins manage scholarships with full CRUD, review applicant details, and flip application statuses. Auth is JWT-based with role-guarded admin routes, and password resets use email OTPs."
+"OSP is a scholarship application portal — a React SPA on a Node/Express REST API backed by a normalized PostgreSQL database, deployed on Vercel, Render, and Supabase. Students register, fill a profile spanning about ten normalized tables, upload eight required PDFs to Cloudinary, and apply for scholarships; admins manage scholarships and review applications. Auth is JWT-based with role checks enforced server-side. I recently took it from a barely-secured course project — SQL injection, a complete auth bypass, broken access control on most student endpoints — through a full remediation pass, added CI and migration tooling, and got it properly deployed."
 
-## B. 2-Minute Project Explanation
+## B. 2-Minute Explanation
 
-"OSP is a full-stack scholarship portal. On the frontend, a React 18 app with React Router and Tailwind CSS renders separate admin and student dashboards; auth state lives in a Context provider backed by localStorage. The backend is a classic Express REST API with three route modules — user, scholarship, and password-reset — backed by about twenty-five controller files that all talk to a single `pg` connection pool. The database is PostgreSQL under an `osp` schema with roughly fifteen 3NF tables: users, scholarships, applicants, and supporting tables for addresses, banks/IFSC, education, class-10/12 records, plus junction tables for applications and document storage.
+"The frontend is a React 18 SPA with role-specific dashboards (admin vs. student), auth state in a Context provider backed by localStorage. The backend is an Express REST API — three route modules, about twenty-five controllers, all sharing one `pg` connection pool — over a ~16-table 3NF Postgres schema under an `osp` schema.
 
-The interesting engineering is in the profile subsystem: saving a student profile requires insert-or-select logic across seven dependent tables followed by upserts into applicants and class-10/12 tables, while reading it back needs a ten-table join. Document uploads go through multer to local disk, then to Cloudinary, with URLs upserted into a per-email documents table. Admins are authorized by a JWT middleware that re-checks the role in the database; students get a lighter client-side guard. Applications are insertions into an `applied_in` table, with duplicates prevented by a database unique constraint. Deployment is Vercel for the frontend, Render for the API, and managed Postgres. It was a course project, so it has real gaps — scattered SQL injection spots, hardcoded cloud secrets, and no rate limiting — which I can talk through honestly."
+The most interesting engineering is the profile subsystem: saving a student profile touches seven dependent tables (address, bank, education, etc.) before writing the applicant row itself, all inside one transaction, and each dependent-table write is a single `ON CONFLICT ... RETURNING` upsert rather than a check-then-insert round trip. Reading it back is a ten-table join. Document uploads go through multer to a private Cloudinary account, with the actual file content verified server-side, not just the claimed MIME type, and viewing a document issues a short-lived signed URL rather than a permanent one.
 
-## C. Complete Architecture Explanation
+I did a full remediation pass on this: fixed two live SQL-injection points, closed nine IDOR endpoints, and found and fixed a complete authentication bypass in the session-refresh endpoint — it would mint a valid admin JWT for anyone who knew an admin's email, no password required. I also fixed the connection-pool config (a missing error handler that would crash the process on a dropped connection), added proper migration tooling since the schema previously had a destructive-only setup script, cut the profile-save query count roughly in half, and set up CI/CD from scratch. It's honest work on a real production app with real users, not a green-field toy."
 
-The system is a three-tier web app.
+## C. Architecture Deep-Dive
 
-**Presentation tier** (`client/`): CRA React 18 SPA. `index.js` mounts `BrowserRouter > UserProvider > App`. `App.js` declares 15 routes, wrapping admin pages in `PrivateRoute` and student pages in `StudentRoute`. Guards read `userInfo` from localStorage and call `POST /api/user/authRole` to re-confirm the role. Pages are split into `components/Admin` (dashboard, scholarship CRUD, applicant review), `components/Apply` (browse/apply), `components/Profile` (the 7-section form + file uploads), and shared `Navbar`. State is a single React Context (`user`, `setUser`, `baseURL`) plus localStorage. Data fetching is inline `fetch` calls (with one shared `useFetch` hook), URLs hardcoded to `https://group7-osp.onrender.com`.
+**Presentation tier:** CRA React 18. `index.js` mounts `BrowserRouter > UserProvider > App`. `App.js` declares the route table in §1, wrapping admin pages in `PrivateRoute` and student pages in `StudentRoute` — both re-confirm the role server-side via `authRole` (now JWT-gated) unless already cached this session. Pages split into `components/Admin`, `components/Apply`, `components/Profile` (the 7-section form), and shared `Navbar` variants. State is one Context (`user`, `setUser`, `baseURL`) plus localStorage, read through a single safe helper.
 
-**Application tier** (`server/`): Express 4. `server.js` registers JSON body parsing, CORS locked to the Vercel origin, and three routers. Controllers follow a flat function-per-file convention, each importing the shared `pg` pool. Two mid-tier helpers exist: `config/generateToken.js` (JWT) and `config/multer.js` (disk upload). The only middleware, `protect`, is admin-only and used exclusively on `/api/scholarship`. There is no service/repository layer — controllers contain SQL directly.
+**Application tier:** Express 4. `server.js` wires JSON parsing, env-driven CORS, a request logger, three routers, and a catch-all error handler. Controllers are a flat function-per-file convention; no service/repository layer. The only auth middleware, `protect`, verifies the JWT and re-fetches the user from the DB on every request (so a role change takes effect immediately, not just at next login); `requireAdmin` layers on top for admin-only routes.
 
-**Data tier**: PostgreSQL, `osp` schema. The pool (`config/db.js`) uses `connectionString` + `ssl:true`. Schema is documented in `OSP_Documentation.md` and includes users, scholarships, applicants, normalized location/bank/education dimension tables, class-10/12 detail tables, the `applied_in` junction table, `applicant_documents` (8 Cloudinary URL columns keyed by email), and `forgot_pass` for OTPs. Writes lean on `INSERT ... ON CONFLICT DO UPDATE` upserts; reads lean on multi-table `LEFT JOIN`s (up to 10 tables).
+**Data tier:** PostgreSQL, `osp` schema, managed via `node-pg-migrate`. Roughly 16 tables: users, scholarships, applicants, normalized location/bank/education dimension tables, class-10/12 detail tables, `applied_in` (the application junction table), `applicant_documents` (8 Cloudinary public-ID columns keyed by email), `forgot_pass` (OTPs), and `pgmigrations` (migration tracking). Writes lean on `INSERT ... ON CONFLICT DO UPDATE` upserts; reads lean on multi-table `LEFT JOIN`s (up to 10 tables).
 
-**Cross-cutting flows**: auth = bcrypt(10) hashes + 30-day JWTs; files = multer→disk→Cloudinary(raw)→URL-in-DB; password reset = 6-digit OTP, bcrypt-hashed in DB, sent over Gmail SMTP via Nodemailer, verified with a 10-minute window; roles = DB-stored `role` column enforced server-side only for admin, client-side for students.
+**Cross-cutting:** auth = bcrypt(10) + 30-day JWTs, role re-verified server-side on every protected request; files = multer → magic-byte check → private Cloudinary → signed-URL viewing; password reset = 6-digit OTP, bcrypt-hashed, emailed via Nodemailer, 10-minute expiry enforced at both check points; deployment = Vercel (manual `vercel --prod`) + Render (auto-deploy) + Supabase, fronted by a CI workflow that verifies builds but doesn't gate either deploy.
 
-## D. 20 Likely Interview Questions (specific to this repo)
+## D. Likely Interview Questions
 
-1. **"Walk me through the request path for an admin changing a student's application status."** → `ApplicantsData.jsx` → `PUT /api/scholarship/statusUpdate` → `protect` middleware → `statusUpdate.js` → `UPDATE applied_in`.
-2. **"Where are the SQL injection risks, and which queries are parameterized?"** → cite `authUser.js:9`, `getScholarship.js:7`, `deleteScholarship.js:19/22`, `getApplicantsData.js:61` vs parameterized `registerUser.js:21`, `uploadpdfs.js:77`.
-3. **"How is the profile saved, and what's wrong with it?"** → insert-or-select chain, upserts, no transaction, swallowed errors, no response on failure.
-4. **"Explain the fetchprofile 10-table JOIN and why it's needed."** → normalization forces it; alternative would be multiple queries or denormalization.
-5. **"How does the file upload work end-to-end?"** → multer disk → Cloudinary raw → fs.unlinkSync → upsert URL.
-6. **"How does the OTP password reset work, and what are its flaws?"** → hashed OTP, expiry commented out in validateOTP, no rate limiting.
-7. **"How is authentication implemented?"** → bcrypt + JWT 30d, role in token, `protect` re-queries DB and requires admin.
-8. **"What happens if a student applies twice?"** → DB unique constraint 23505 surfaced to client as "already applied."
-9. **"Why did you use NATURAL JOIN in getAppliedScholarships, and what's the risk?"** → auto-join on shared columns is fragile.
-10. **"How do you prevent a student from seeing another student's data?"** → honest answer: you mostly can't — email-based routes with no auth = IDOR.
-11. **"How would you add a student-level backend guard?"** → new middleware verifying `req.user.role === 'student'` from a decoded token, or role check inside each controller.
-12. **"What's the bug in the register token?"** → `email` claim is set to `user.rows[0].id`.
-13. **"Explain the authRole endpoint and its security implications."** → ignores token, trusts body email+role.
-14. **"How is state managed on the frontend?"** → Context + localStorage, no Redux; why that's sufficient for this app.
-15. **"What are the hardcoded secrets and how would you fix them?"** → Cloudinary creds, commented DB creds → move to env vars / secrets manager.
-16. **"How would you make the profile save atomic?"** → wrap in `BEGIN`/`COMMIT` with `ROLLBACK` on error, or use a single CTE.
-17. **"Where is CORS configured and what's the implication?"** → locked to prod origin; local dev needs an edit.
-18. **"How is the app deployed?"** → Vercel + Render + managed Postgres; note README's stale MongoDB/AWS claim.
-19. **"What's wrong with MAX(status) in ApplicantController?"** → lexicographic, not chronological.
-20. **"What scalability limits do you see?"** → no pagination, 15 sequential writes per profile save, COUNT/GROUP BY without indexes, single pool.
+1. **"Walk me through an admin changing a student's application status."** → `ApplicantsData.jsx` → `PUT /api/scholarship/statusUpdate` (protect+admin) → state-machine validation → `UPDATE applied_in`.
+2. **"Tell me about a security issue you found and fixed."** → Lead with `authRole`: public endpoint, no password check, minted valid admin JWTs for a guessed email. Explain the fix (require `protect`, trust only `req.user`) and how you verified it (forged request before/after, against the live DB).
+3. **"How is the profile saved, and what did you improve about it?"** → transactional upsert chain, cut from up to 14 round trips to 7, backed by new `UNIQUE` constraints added via a checked-against-live-data migration.
+4. **"How does file upload work end-to-end, and what's actually secure about it?"** → multer → magic-byte content check (not just MIME type) → private Cloudinary → signed 15-minute URLs for viewing, not permanent public links.
+5. **"How does the OTP password reset work, and what's still weak about it?"** → hashed OTP, expiry enforced at both steps now; still no rate limiting, still `Math.random()` not a CSPRNG.
+6. **"How is authentication implemented?"** → bcrypt + 30-day JWT with `{email, role}`; `protect` re-queries the DB on every request rather than trusting stale claims.
+7. **"What happens if a student applies twice?"** → Postgres unique-constraint violation (`23505`), surfaced as "already applied."
+8. **"Why is `getAppliedScholarships` still using `NATURAL JOIN`, and what's the risk?"** → works today, but auto-joins on every shared column name across 4 tables — a future same-named column anywhere in that join would silently change behavior. Would replace with explicit `ON` clauses given more time.
+9. **"How do you prevent one student from seeing another's data now?"** → self-or-admin check on every profile/document endpoint, matching the pattern `viewDocument.js` already used correctly; explain what it looked like before (email-in-URL, no check at all).
+10. **"How would you further harden this?"** → rate limiting on login/OTP endpoints, a CSPRNG for OTP generation, splitting `scholarshipListings.js`'s two bundled handlers, replacing the `NATURAL JOIN`, wiring CI as an actual deploy gate instead of an informational check.
+11. **"Why migrate to `node-pg-migrate` instead of just editing `schema.sql`?"** → `schema.sql` starts with `DROP SCHEMA ... CASCADE` — safe once, destructive forever after real data exists. Migrations are additive, tracked, and re-runnable.
+12. **"Why keep migrations out of CI?"** → no staging environment to catch a bad migration before it touches the only database that exists — a deliberate, discussable trade-off, not an oversight.
+13. **"What's the CORS setup, and what went wrong with it during deployment?"** → env-driven `FRONTEND_URL`; a stale/trailing-slash mismatch after a Vercel redeploy caused a real CORS outage, fixed by exactly matching the live origin.
+14. **"How is the app deployed, and what's the split between auto and manual?"** → Render auto-deploys on push (Blueprint-based); Vercel is CLI-deployed and does *not* auto-update on push — a distinction worth knowing cold.
+15. **"What would you add a test suite around first?"** → the auth flows (login, `authRole`, registration) and the profile-upsert transaction, since those are the highest-consequence and highest-complexity paths with zero coverage today.
 
-## E. Parts You Must Understand Deeply
+## E. Parts to Know Deeply
 
-- **Auth & middleware** (`authUser.js`, `registerUser.js`, `authMiddleware.js`, `generateToken.js`) — including the token-email bug, the admin-only `protect`, and the `authRole` design flaw. This is the most likely interview focus.
-- **Profile subsystem** (`userprofile.js`, `fetchprofile.js`) — the upsert chain, the 10-table join, the missing transaction, the frontend camelCase mismatch bug.
-- **The `applyForScholarship` + `getAppliedScholarships` + `getApplicantId` trio** — header-based email, duplicate handling via 23505.
-- **File upload** (`multer.js`, `uploadpdfs.js`, `handelpdfurls.js`, `handelclearpdf.js`) — the full multer→Cloudinary→DB pipeline and the key→column whitelist.
-- **Password reset** (`resetPass.js`) — OTP lifecycle and its expiry/rate-limit gaps.
-- **The database schema** in `OSP_Documentation.md` §4-5 — be ready to draw the ER diagram and explain normalization choices.
-- **Route wiring** (`server.js`, all three route files) — which endpoints are protected vs public, and the double-registration of `getScholarship`.
+- **Auth** (`authUser.js`, `registerUser.js`, `authMiddleware.js`, `generateToken.js`) — especially the `authRole` bypass and its fix; this is the single most likely deep-dive.
+- **Profile subsystem** (`profileUpsert.js`, `fetchprofile.js`) — the transactional upsert chain and the 10-table read join.
+- **The IDOR remediation** — what the self-or-admin pattern looks like, where it's applied, and why `viewDocument.js` was the reference implementation.
+- **File upload** (`multer.js`, `uploadpdfs.js`, `handleClearPdf.js`, `viewDocument.js`) — the full pipeline including the magic-byte check and orphan cleanup.
+- **The migration setup** — why it exists, how the baseline was made idempotent, how a new migration gets checked against live data before applying.
+- **Route wiring** (`server.js`, all three route files) — which endpoints require what, and the one remaining duplicate (`getScholarship`).
 
-## F. Parts You Can Describe at a High Level (likely not your primary contribution)
+## F. Parts You Can Describe at a High Level
 
-- **Styling/UI polish** (`AdminProfile.css`, `Navbar.css`, `index.css`, tailwind config animations, `App.css`, the `animate-pulse-grow` keyframes) — pure presentation, safe to hand-wave.
-- **The 7 profile sub-form components** (`PersonalDetails`, `CommunicationAddress`, `BankDetails`, `Class10Details`, `Class12Details`, `CurrentAcademicDetails`, `CurrentEducationDetails`) — know the *shape* (controlled inputs + validation callbacks + `FileUpload`) but not every field.
-- **`faqs.jsx`** — static content page.
-- **The GUI Selenium `.side` files and the UAT/black-box PDFs** in `Documentation/` — testing artifacts; summarize as "we did Selenium IDE GUI tests and manual UAT."
-- **The Jest/Mocha test files** — mention that unit tests were written for controllers with mocked `pool.query`/`bcrypt`, but be ready to admit they weren't wired into CI.
-- **`mermaid-diagram.png`** and the lab PDFs — supplementary documentation.
+- Styling/UI polish, animation classes, Tailwind config.
+- The 7 profile sub-form components — know the shape (controlled inputs + validation callbacks + `FileUpload`), not every field.
+- `Faqs.jsx` — static content.
+- The Selenium `.side` GUI tests and UAT/black-box PDFs under `Documentation/` — summarize as "Selenium IDE GUI tests plus manual UAT for the course," and be ready to say plainly that there's still no automated test suite wired into the app.
 
-One honest framing tip: since this is a group project, lead with what you *can* defend (auth flaws, the profile write path, the document pipeline, the schema), and for the rest say "my teammate owned the styling/faqs/testing, so I know it at a high level." Interviewers generally reward that self-awareness.
+One honest framing: since this started as a group project, lead with what you personally hardened and can defend in depth — auth, the profile write path, the document pipeline, the migration setup — and say plainly where you're describing a teammate's original work at a high level. Interviewers reward that distinction.

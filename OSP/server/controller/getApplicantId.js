@@ -3,7 +3,7 @@ const pool = require("../config/db");
 const getApplicantId = async (req, res) => {
   console.log("Reached getApplicant ID");
 
-  const email = req.headers.email;
+  const email = req.user.email;
 
   try {
     let getQuery = `

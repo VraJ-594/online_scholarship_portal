@@ -2,7 +2,11 @@ const pool = require("../config/db");
 
 const handelclearpdf = async (req, res) => {
     const { email, id } = req.params;
-  
+
+    if (req.user.role !== "admin" && req.user.email !== email) {
+      return res.status(403).json({ message: "Forbidden: You do not have permission to modify these documents." });
+    }
+
     const idToColumnMap = {
         incomeCertificate: "income_certificate",
         bankPassbook: "bank_passbook",
@@ -15,6 +19,10 @@ const handelclearpdf = async (req, res) => {
       };
       
       const columnName = idToColumnMap[id];
+
+      if (!columnName) {
+        return res.status(400).json({ message: "Invalid document type requested." });
+      }
 
       try {
         

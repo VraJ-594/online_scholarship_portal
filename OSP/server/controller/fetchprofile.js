@@ -2,7 +2,11 @@ const pool = require("../config/db");
 
 const fetchprofile = async (req, res, next) => {
   const email = req.params.email;
-  
+
+  if (req.user.role !== "admin" && req.user.email !== email) {
+    return res.status(403).json({ message: "Forbidden: You do not have permission to view this profile." });
+  }
+
   const query = `
     SELECT
         a.first_name,

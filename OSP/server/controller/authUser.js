@@ -6,7 +6,8 @@ const authUser = async (req, res) => {
   const { email, password, role } = req.body;
 
   const userExists = await pool.query(
-    `select * from osp.users where email='${email}'`
+    "select * from osp.users where email=($1)",
+    [email]
   );
 
   if (userExists.rows.length) {
@@ -55,7 +56,8 @@ const authRole = async (req, res) => {
 
   try {
     const userExists = await pool.query(
-      `select * from osp.users where email='${email}'`
+      "select * from osp.users where email=($1)",
+      [email]
     );
 
     if (userExists.rows.length) {

@@ -2,8 +2,7 @@ const pool = require("../config/db");
 
 const getUserProfile = async (req, res) => {
   console.log('Reached User Profile');
-  const email = req.query.email; // email is passed as a query parameter
-  console.log(email);
+  const email = req.user.email; // identity comes from the verified JWT, never the client
   try {
     // Select only the email and username columns where role is "admin"
     const userQuery = 'SELECT email, username FROM osp.users WHERE email = $1 AND role = $2';
@@ -20,12 +19,13 @@ const getUserProfile = async (req, res) => {
 };
 
 const updateUserProfile = async (req, res) => {
-  const { email, name } = req.body; // Only accept email and name from the request body
+  const email = req.user.email; // identity comes from the verified JWT, never the client
+  const { name } = req.body;
   console.log('Reached Update User Profile');
   try {
     // Validate input
-    if (!email || !name) {
-      return res.status(400).json({ error: "Email and Name are required" });
+    if (!name) {
+      return res.status(400).json({ error: "Name is required" });
     }
 
     

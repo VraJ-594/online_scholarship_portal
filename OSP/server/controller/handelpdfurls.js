@@ -3,6 +3,10 @@ const pool = require("../config/db");
 const handelpdfurls = async (req, res) => {
   const { email } = req.params; // Get the email ID from the URL parameters
 
+  if (req.user.role !== "admin" && req.user.email !== email) {
+    return res.status(403).json({ message: "Forbidden: You do not have permission to view these documents." });
+  }
+
   try {
     // Query the database for the document URLs
     const query = `

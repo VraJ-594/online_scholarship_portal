@@ -3,10 +3,9 @@ const pool = require("../config/db");
 const handelemail = async (req, res) => {
   const email = req.params.email;
 
-  console.log(email);
-
-  console.log(email);
-  console.log(email);
+  if (req.user.role !== "admin" && req.user.email !== email) {
+    return res.status(403).json({ message: "Forbidden: You do not have permission to check this email." });
+  }
 
   try {
     const query = "SELECT osp.applicants.email FROM osp.applicants WHERE email = $1";

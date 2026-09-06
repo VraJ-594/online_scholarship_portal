@@ -4,6 +4,10 @@ const handelprofiledata = async (req, res, next) => {
   const formData = req.body;
   const email = formData.email;
 
+  if (req.user.role !== "admin" && req.user.email !== email) {
+    return res.status(403).json({ message: "Forbidden: You do not have permission to modify this profile." });
+  }
+
   // Grab a dedicated client from the pool to run a Transaction
   const client = await pool.connect();
 

@@ -5,13 +5,28 @@ const applyForScholarship = async (req, res, next) => {
 
   // Support taking scholarship_id from URL params (as defined in your routes) or body
   const scholarship_id = req.params.scholarship_id || req.body.scholarship_id;
-  const { applicant_id, applied_date, status } = req.body;
+  const { applied_date, status } = req.body;
 
-  if (!scholarship_id || !applicant_id || !applied_date || !status) {
+  if (!scholarship_id || !applied_date || !status) {
     return res.status(400).json({ message: "Please provide all required fields." });
   }
 
   try {
+    // ========================================================================
+    // 0. DERIVE THE APPLICANT ID FROM THE AUTHENTICATED USER
+    // (never trust a client-supplied applicant_id — it would let one student
+    // submit an application on another student's behalf)
+    // ========================================================================
+    const applicantIdLookup = await pool.query(
+      "SELECT applicant_id FROM osp.applicants WHERE email = $1",
+      [req.user.email]
+    );
+
+    if (applicantIdLookup.rows.length === 0) {
+      return res.status(404).json({ message: "Applicant profile not found. Please complete your profile first." });
+    }
+    const applicant_id = applicantIdLookup.rows[0].applicant_id;
+
     // ========================================================================
     // 1. FETCH SCHOLARSHIP REQUIREMENTS
     // ========================================================================

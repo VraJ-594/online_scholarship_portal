@@ -13,8 +13,8 @@ const registerUser = async (req, res) => {
   try {
 
     if (!username || !email || !password) {
-      res.status(400).send(JSON.stringify("Please Input all the Feilds"));
-      console.error("Please Input all the Feilds");
+      res.status(400).json({ success: false, message: "Please input all the fields" });
+      console.error("Please input all the fields");
       return;
     }
 
@@ -36,25 +36,20 @@ const registerUser = async (req, res) => {
     password = await bcrypt.hash(password, salt);
 
     try {
-      
-        await pool.query(
-          "insert into osp.users (username, email, password ,role) values  ($1,$2,$3,$4)",
-          [username, email, password,"student"]
-        );
-      
 
-      const user = await pool.query(
-        `select * from osp.users where username='${username}'`
+      const inserted = await pool.query(
+        "insert into osp.users (username, email, password ,role) values ($1,$2,$3,$4) returning id, username, role, email, pic",
+        [username, email, password, "student"]
       );
-      // console.log(user.rows);
-      res.status(201).json({
-        id: user.rows[0].id,
-        username: user.rows[0].username,
-        role :user.rows[0].role,
-        email: user.rows[0].email,
-        pic: user.rows[0].pic,
-        token: generateToken({email:user.rows[0].id , role:user.rows[0].role}),
+      const user = inserted.rows[0];
 
+      res.status(201).json({
+        id: user.id,
+        username: user.username,
+        role: user.role,
+        email: user.email,
+        pic: user.pic,
+        token: generateToken({ email: user.email, role: user.role }),
       });
     } catch (error) {
       console.log(error);

@@ -36,6 +36,11 @@ const handeluploads = async (req, res) => {
 
   const localFilePath = req.file.path;
 
+  if (req.user.role !== "admin" && req.user.email !== email) {
+    await fs.unlink(localFilePath).catch(() => {});
+    return res.status(403).json({ message: "Forbidden: You do not have permission to upload documents for this account." });
+  }
+
   const keyToDBColumnMap = {
     incomeCertificate: "income_certificate",
     bankPassbook: "bank_passbook",

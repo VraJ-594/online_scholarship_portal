@@ -2,7 +2,7 @@ const pool = require("../config/db");
 
 const getAppliedScholarships = async (req, res) => {
   console.log("Reached getAppliedScholarships");
-  const email = req.headers.email;
+  const email = req.user.email;
 
   try {
     const getQuery2 = `  SELECT 

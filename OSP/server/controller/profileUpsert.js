@@ -37,13 +37,13 @@ const handleProfileData = async (req, res, next) => {
     const districtId = distRes.rows[0].district_id;
 
     // 3. ADDRESS
-    let addressId;
-    const addrResult = await client.query("SELECT address_id FROM osp.addresses WHERE street_address = $1 AND pin_code = $2 AND district_id = $3", [formData.village, formData.pin, districtId]);
-    if (addrResult.rows.length > 0) addressId = addrResult.rows[0].address_id;
-    else {
-      const res = await client.query("INSERT INTO osp.addresses (street_address, pin_code, district_id) VALUES ($1, $2, $3) RETURNING address_id", [formData.village, formData.pin, districtId]);
-      addressId = res.rows[0].address_id;
-    }
+    const addrRes = await client.query(
+      `INSERT INTO osp.addresses (street_address, pin_code, district_id) VALUES ($1, $2, $3)
+       ON CONFLICT (street_address, pin_code, district_id) DO UPDATE SET street_address = EXCLUDED.street_address
+       RETURNING address_id`,
+      [formData.village, formData.pin, districtId]
+    );
+    const addressId = addrRes.rows[0].address_id;
 
     // 4. IFSC DETAILS (ifsc_code is already the primary key, so a plain
     // ON CONFLICT DO NOTHING is enough -- nothing downstream needs its row back)
@@ -74,13 +74,13 @@ const handleProfileData = async (req, res, next) => {
     const departmentName = deptRes.rows[0].department_name;
 
     // 7. EDUCATION DETAILS (College)
-    let collegeId;
-    const eduResult = await client.query("SELECT college_id FROM osp.Education_Details WHERE department_name = $1 AND tuition_fees = $2 AND non_tuition_fees = $3", [departmentName, formData.tuitionFees, formData.nonTuitionFees]);
-    if (eduResult.rows.length > 0) collegeId = eduResult.rows[0].college_id;
-    else {
-      const res = await client.query("INSERT INTO osp.Education_Details (department_name, tuition_fees, non_tuition_fees) VALUES ($1, $2, $3) RETURNING college_id", [departmentName, formData.tuitionFees, formData.nonTuitionFees]);
-      collegeId = res.rows[0].college_id;
-    }
+    const eduRes = await client.query(
+      `INSERT INTO osp.Education_Details (department_name, tuition_fees, non_tuition_fees) VALUES ($1, $2, $3)
+       ON CONFLICT (department_name, tuition_fees, non_tuition_fees) DO UPDATE SET department_name = EXCLUDED.department_name
+       RETURNING college_id`,
+      [departmentName, formData.tuitionFees, formData.nonTuitionFees]
+    );
+    const collegeId = eduRes.rows[0].college_id;
 
     // 8. APPLICANT UPSERT
     const insertOrUpdateApplicantQuery = `

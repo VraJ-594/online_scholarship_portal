@@ -1,10 +1,17 @@
 const multer = require("multer");
 const path = require("path");
+const fs = require("fs");
+
+// Resolve relative to this file, not the process's working directory, and
+// create the folder automatically instead of requiring it to pre-exist
+const uploadDir = path.join(__dirname, "..", "uploads");
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    // Note: Ensure the 'uploads/' folder exists in your project root
-    cb(null, "uploads/"); 
+    cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
     // Sanitize the filename to prevent path traversal attacks (e.g., ../../)

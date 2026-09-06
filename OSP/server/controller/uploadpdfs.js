@@ -1,6 +1,20 @@
 const cloudinary = require("../config/cloud");
-const fs = require("fs").promises; 
+const fs = require("fs").promises;
 const pool = require("../config/db");
+
+// multer's fileFilter only checks the client-supplied MIME type, which is
+// trivially spoofable. Verify the actual file content starts with the PDF
+// magic bytes ("%PDF-") before trusting/uploading it anywhere.
+const isActuallyPdf = async (filePath) => {
+  const fileHandle = await fs.open(filePath, "r");
+  try {
+    const buffer = Buffer.alloc(5);
+    await fileHandle.read(buffer, 0, 5, 0);
+    return buffer.toString("ascii") === "%PDF-";
+  } finally {
+    await fileHandle.close();
+  }
+};
 
 // Cloudinary upload function (Now Secure)
 const uploadOnCloudinary = async (localFilePath, email) => {
@@ -55,13 +69,26 @@ const handeluploads = async (req, res) => {
   const dbColumn = keyToDBColumnMap[key];
 
   if (!dbColumn) {
-    await fs.unlink(localFilePath).catch(() => {}); 
+    await fs.unlink(localFilePath).catch(() => {});
     return res.status(400).json({ message: "Invalid document upload key" });
   }
 
+  if (!(await isActuallyPdf(localFilePath))) {
+    await fs.unlink(localFilePath).catch(() => {});
+    return res.status(400).json({ message: "Invalid file type. Only PDF documents are allowed." });
+  }
+
   try {
+    // Look up whatever's currently stored so it can be cleaned up from
+    // Cloudinary after a successful replacement, instead of being orphaned
+    const existing = await pool.query(
+      `SELECT ${dbColumn} FROM osp.applicant_documents WHERE email = $1`,
+      [email]
+    );
+    const previousPublicId = existing.rows[0]?.[dbColumn] || null;
+
     // Pass email to organize folders
-    const cloudinaryPublicId = await uploadOnCloudinary(localFilePath, email); 
+    const cloudinaryPublicId = await uploadOnCloudinary(localFilePath, email);
 
     if (!cloudinaryPublicId) {
       return res.status(500).json({ message: "File upload to Cloudinary failed" });
@@ -77,11 +104,17 @@ const handeluploads = async (req, res) => {
     // Saving the public_id in the database, NOT the URL
     await pool.query(updateQuery, [email, cloudinaryPublicId]);
 
+    if (previousPublicId && previousPublicId !== cloudinaryPublicId) {
+      cloudinary.uploader
+        .destroy(previousPublicId, { resource_type: "image", type: "private" })
+        .catch((err) => console.error("Failed to delete replaced Cloudinary asset:", err));
+    }
+
     return res.status(200).json({
       message: "File uploaded securely!",
-      documentId: cloudinaryPublicId, 
+      documentId: cloudinaryPublicId,
     });
-    
+
   } catch (error) {
     console.error("Upload process error:", error);
     return res.status(500).json({ message: "Internal server error during upload" });

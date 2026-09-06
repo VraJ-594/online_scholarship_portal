@@ -16,22 +16,25 @@ const handelprofiledata = async (req, res, next) => {
     await client.query('BEGIN'); // START TRANSACTION
 
     // 1. STATE
-    let stateId;
-    const stateResult = await client.query("SELECT state_id FROM osp.states WHERE state_name = $1", [formData.state]);
-    if (stateResult.rows.length > 0) stateId = stateResult.rows[0].state_id;
-    else {
-      const res = await client.query("INSERT INTO osp.states (state_name) VALUES ($1) RETURNING state_id", [formData.state]);
-      stateId = res.rows[0].state_id;
-    }
+    // Upsert-and-return in one round trip instead of SELECT-then-conditional-INSERT
+    // (the ON CONFLICT DO UPDATE is a harmless self-assignment purely so RETURNING
+    // works whether the row already existed or was just inserted)
+    const stateRes = await client.query(
+      `INSERT INTO osp.states (state_name) VALUES ($1)
+       ON CONFLICT (state_name) DO UPDATE SET state_name = EXCLUDED.state_name
+       RETURNING state_id`,
+      [formData.state]
+    );
+    const stateId = stateRes.rows[0].state_id;
 
     // 2. DISTRICT
-    let districtId;
-    const distResult = await client.query("SELECT district_id FROM osp.districts WHERE district_name = $1 AND state_id = $2", [formData.block, stateId]);
-    if (distResult.rows.length > 0) districtId = distResult.rows[0].district_id;
-    else {
-      const res = await client.query("INSERT INTO osp.districts (district_name, state_id) VALUES ($1, $2) RETURNING district_id", [formData.block, stateId]);
-      districtId = res.rows[0].district_id;
-    }
+    const distRes = await client.query(
+      `INSERT INTO osp.districts (district_name, state_id) VALUES ($1, $2)
+       ON CONFLICT (district_name, state_id) DO UPDATE SET district_name = EXCLUDED.district_name
+       RETURNING district_id`,
+      [formData.block, stateId]
+    );
+    const districtId = distRes.rows[0].district_id;
 
     // 3. ADDRESS
     let addressId;
@@ -42,28 +45,33 @@ const handelprofiledata = async (req, res, next) => {
       addressId = res.rows[0].address_id;
     }
 
-    // 4. IFSC DETAILS
+    // 4. IFSC DETAILS (ifsc_code is already the primary key, so a plain
+    // ON CONFLICT DO NOTHING is enough -- nothing downstream needs its row back)
     let ifscCode = formData.ifscCode;
-    const ifscResult = await client.query("SELECT ifsc_code FROM osp.IFSC_Details WHERE ifsc_code = $1", [ifscCode]);
-    if (ifscResult.rows.length === 0) {
-      await client.query("INSERT INTO osp.IFSC_Details (ifsc_code, bank_name, branch_name) VALUES ($1, $2, $3)", [ifscCode, formData.bankName, formData.bankBranch]);
-    }
+    await client.query(
+      `INSERT INTO osp.IFSC_Details (ifsc_code, bank_name, branch_name) VALUES ($1, $2, $3)
+       ON CONFLICT (ifsc_code) DO NOTHING`,
+      [ifscCode, formData.bankName, formData.bankBranch]
+    );
 
-    // 5. BANK DETAILS
+    // 5. BANK DETAILS (bank_account_no is already the primary key)
     let bankAccountNo = formData.bankAccount;
-    const bankResult = await client.query("SELECT bank_account_no FROM osp.Bank_Details WHERE bank_account_no = $1", [bankAccountNo]);
-    if (bankResult.rows.length === 0) {
-      await client.query("INSERT INTO osp.Bank_Details (bank_account_no, ifsc_code) VALUES ($1, $2)", [bankAccountNo, ifscCode]);
-    }
+    await client.query(
+      `INSERT INTO osp.Bank_Details (bank_account_no, ifsc_code) VALUES ($1, $2)
+       ON CONFLICT (bank_account_no) DO NOTHING`,
+      [bankAccountNo, ifscCode]
+    );
 
-    // 6. DEPARTMENT / COURSE
-    let departmentName;
-    const deptResult = await client.query("SELECT department_name FROM osp.Departments_with_Programs WHERE department_name = $1 AND program_name = $2", [formData.courseName, formData.courseLevel]);
-    if (deptResult.rows.length > 0) departmentName = deptResult.rows[0].department_name;
-    else {
-      const res = await client.query("INSERT INTO osp.Departments_with_Programs (department_name, program_name) VALUES ($1, $2) RETURNING department_name", [formData.courseName, formData.courseLevel]);
-      departmentName = res.rows[0].department_name;
-    }
+    // 6. DEPARTMENT / COURSE (department_name is already the primary key; this also
+    // fixes a latent bug where resubmitting an existing department with a different
+    // program_name would hit a duplicate-key error instead of updating the mapping)
+    const deptRes = await client.query(
+      `INSERT INTO osp.Departments_with_Programs (department_name, program_name) VALUES ($1, $2)
+       ON CONFLICT (department_name) DO UPDATE SET program_name = EXCLUDED.program_name
+       RETURNING department_name`,
+      [formData.courseName, formData.courseLevel]
+    );
+    const departmentName = deptRes.rows[0].department_name;
 
     // 7. EDUCATION DETAILS (College)
     let collegeId;

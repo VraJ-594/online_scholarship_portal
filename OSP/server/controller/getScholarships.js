@@ -38,18 +38,19 @@ const getScholarships = async (req, res, next) => {
     
     queryParams.push(limit, offset);
 
-    // 5. Execute Data Query
-    const response = await pool.query(getQuery, queryParams);
-
-    // 6. Calculate Total Pages (For Frontend Pagination Math)
+    // 5. Build the Total-Count Query (independent of the data query above)
     let totalCountQuery = `SELECT COUNT(*) FROM osp.Scholarships`;
     const countParams = [];
     if (searchQuery.trim() !== "") {
       totalCountQuery += ` WHERE scholarship_name ILIKE $1`;
       countParams.push(`%${searchQuery.trim()}%`);
     }
-    
-    const totalCountRes = await pool.query(totalCountQuery, countParams);
+
+    // 6. Execute Data + Count Queries in Parallel (neither depends on the other)
+    const [response, totalCountRes] = await Promise.all([
+      pool.query(getQuery, queryParams),
+      pool.query(totalCountQuery, countParams),
+    ]);
     const totalScholarships = parseInt(totalCountRes.rows[0].count);
 
     // 7. Send Standardized JSON Response

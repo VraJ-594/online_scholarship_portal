@@ -29,10 +29,16 @@ const statusUpdate = async (req, res, next) => {
   }
 
   try {
-    // 1. FETCH CURRENT STATUS FROM DATABASE
+    // 1. FETCH CURRENT STATUS + STUDENT/SCHOLARSHIP DETAILS IN ONE ROUND TRIP
+    // (these were previously two separate queries -- the details are needed
+    // for the notification email regardless of the update outcome, so fetch
+    // them together with the status check up front)
     const currentStatusQuery = `
-      SELECT status FROM osp.applied_in 
-      WHERE applicant_id = $1 AND scholarship_id = $2;
+      SELECT ai.status, a.email, a.first_name, s.scholarship_name
+      FROM osp.applied_in ai
+      JOIN osp.applicants a ON a.applicant_id = ai.applicant_id
+      JOIN osp.Scholarships s ON s.scholarship_id = ai.scholarship_id
+      WHERE ai.applicant_id = $1 AND ai.scholarship_id = $2;
     `;
     const currentResult = await pool.query(currentStatusQuery, [applicant_id, s_id]);
 
@@ -40,9 +46,7 @@ const statusUpdate = async (req, res, next) => {
       return res.status(404).json({ message: "Application record not found for this student and scholarship." });
     }
 
-    const currentStatus = currentResult.rows.length > 0 && currentResult.rows[0].status 
-      ? currentResult.rows[0].status 
-      : "Pending";
+    const currentStatus = currentResult.rows[0].status || "Pending";
 
     // 2. STATE MACHINE VALIDATION & PRECISE ERROR MESSAGING
     const allowedNextStates = VALID_TRANSITIONS[currentStatus] || [];
@@ -71,19 +75,11 @@ const statusUpdate = async (req, res, next) => {
     `;
     await pool.query(updateQuery, [statusToUpdate, applicant_id, s_id]);
 
-    // 4. FETCH STUDENT AND SCHOLARSHIP DETAILS FOR THE EMAIL
-    const detailsQuery = `
-      SELECT a.email, a.first_name, s.scholarship_name
-      FROM osp.applicants a
-      CROSS JOIN osp.Scholarships s
-      WHERE a.applicant_id = $1 AND s.scholarship_id = $2;
-    `;
-    const detailsResult = await pool.query(detailsQuery, [applicant_id, s_id]);
-
-    if (detailsResult.rows.length > 0) {
-      const studentEmail = detailsResult.rows[0].email;
-      const studentName = detailsResult.rows[0].first_name;
-      const scholarshipName = detailsResult.rows[0].scholarship_name;
+    // 4. SEND THE NOTIFICATION EMAIL USING DETAILS ALREADY FETCHED IN STEP 1
+    {
+      const studentEmail = currentResult.rows[0].email;
+      const studentName = currentResult.rows[0].first_name;
+      const scholarshipName = currentResult.rows[0].scholarship_name;
 
       let statusColor = "#007BFF";
       if (statusToUpdate.toLowerCase().includes("accept")) statusColor = "#28a745";

@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  client-build:
+    name: Build frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: OSP/client
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: OSP/client/package-lock.json
+
+      - run: npm ci
+      - run: npm run build
+
+  server-check:
+    name: Verify backend installs and every file is syntactically valid
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: OSP/server
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: OSP/server/package-lock.json
+
+      - run: npm ci
+
+      - name: Syntax-check every JS file
+        run: find . -name "*.js" -not -path "./node_modules/*" -print0 | xargs -0 -n1 node --check

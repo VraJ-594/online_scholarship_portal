@@ -2,6 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
+.font-display {
+  font-family: "Source Serif 4", ui-serif, Georgia, "Times New Roman", serif;
+}
+
 input::-webkit-outer-spin-button,
 input::-webkit-inner-spin-button {
   -webkit-appearance: none;

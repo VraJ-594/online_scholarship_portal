@@ -161,14 +161,6 @@ The application is hosted on a cloud platform with the following setup:
 ---
 
 # Contributors  
-[Vraj Dobariya](https://github.com/Vraj-Dobariya)  
-[Akshat Joshi](https://github.com/Akshatj26-github)  
-[Kashvi Bhanderi](https://github.com/kashvi710)  
-[Nishil Patel](https://github.com/202201166)  
-[Om Patel](https://github.com/202201138)  
-[Dip Baldha](https://github.com/202201142)  
-[Krisha Bramhbhat](https://github.com/krishabrahmbhatt)  
-[Dhruv Suri](https://github.com/202201110)  
-[Vidhan - Black Box Testing]  
+[Vraj Dobariya](https://github.com/VraJ-594/)  
  
 ```

@@ -1,3 +1,4 @@
+import { getStoredUserInfo } from "../../utils/storage";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useContextState, authHeaders } from "../../context/userProvider";
@@ -24,7 +25,7 @@ const Admin_Dashboard = () => {
   // Fetch API Trigger
   useEffect(() => {
     const fetchScholarships = async () => {
-      const userInfo = JSON.parse(localStorage.getItem("userInfo") || "null");
+      const userInfo = getStoredUserInfo();
 
       if (!userInfo?.token) {
         setError("You must be logged in to view scholarships.");

@@ -1,3 +1,4 @@
+import { getStoredUserInfo } from "../utils/storage";
 import { useEffect, useState } from "react";
 
 const useFetch = (url) => {
@@ -7,8 +8,8 @@ const useFetch = (url) => {
 
   useEffect(() => {
     const fetchData = async () => {
-      const userInfo = JSON.parse(localStorage.getItem("userInfo"));
-      console.log("Fetching data from URL:", url); // Debug log
+      const userInfo = getStoredUserInfo();
+
       try {
         const response = await fetch(url, {
           headers: {

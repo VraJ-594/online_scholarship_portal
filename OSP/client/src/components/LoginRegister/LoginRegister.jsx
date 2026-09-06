@@ -1,3 +1,4 @@
+import { getStoredUserInfo } from "../../utils/storage";
 import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
@@ -26,7 +27,7 @@ const LoginRegister = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const userInfo = JSON.parse(localStorage.getItem("userInfo"));
+    const userInfo = getStoredUserInfo();
     if (userInfo && userInfo.token) {
       roleCheck(userInfo);
     }

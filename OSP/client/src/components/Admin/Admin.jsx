@@ -1,5 +1,5 @@
 import Admin_Dashboard from "./Admin_Dashboard";
-import NavbarAdmin from "./Navbar";
+import NavbarAdmin from "./AdminNavbar";
 const Admin = () => {
   return (
     <>

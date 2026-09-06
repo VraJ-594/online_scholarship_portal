@@ -1,7 +1,8 @@
+import { getStoredUserInfo } from "../../utils/storage";
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useContextState } from "../../context/userProvider";
-import NavbarAdmin from "./Navbar";
+import NavbarAdmin from "./AdminNavbar";
 import { ToastContainer, toast, Bounce } from "react-toastify";
 import SimpleMdeReact from "react-simplemde-editor";
 import "easymde/dist/easymde.min.css";
@@ -34,7 +35,7 @@ const AdminEditScholarship = () => {
   const navigate = useNavigate();
   const { state } = useLocation();
   const { baseURL } = useContextState();
-  const userInfo = JSON.parse(localStorage.getItem("userInfo"));
+  const userInfo = getStoredUserInfo();
 
   const [isLoading, setIsLoading] = useState(false);
 

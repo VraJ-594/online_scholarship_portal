@@ -1,11 +1,12 @@
+import { getStoredUserInfo } from "../../utils/storage";
 import React, { useState, useEffect } from "react";
 import { FaUnlock, FaLock } from "react-icons/fa";
 import { useContextState } from "../../context/userProvider";
 import { ToastContainer, toast, Bounce } from "react-toastify";
-import NavbarAdmin from "./Navbar.jsx";
+import NavbarAdmin from "./AdminNavbar.jsx";
 
 const AdminProfile = () => {
-  const userInfo = JSON.parse(localStorage.getItem("userInfo"));
+  const userInfo = getStoredUserInfo();
   const { baseURL } = useContextState();
   
   const [profile, setProfile] = useState({
@@ -20,7 +21,7 @@ const AdminProfile = () => {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const obj = JSON.parse(localStorage.getItem("userInfo"));
+        const obj = getStoredUserInfo();
         if (!obj?.email) return;
 
         const response = await fetch(`${baseURL}/api/user/getuserprofile?email=${obj.email}`, {
@@ -66,7 +67,7 @@ const AdminProfile = () => {
 
     setIsLoading(true);
     try {
-      const obj = JSON.parse(localStorage.getItem("userInfo"));
+      const obj = getStoredUserInfo();
       
       const response = await fetch(`${baseURL}/api/user/updateuserprofile`, {
         method: "POST",

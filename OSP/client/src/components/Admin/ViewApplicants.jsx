@@ -1,7 +1,8 @@
+import { getStoredUserInfo } from "../../utils/storage";
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useContextState } from "../../context/userProvider";
-import NavbarAdmin from "./Navbar";
+import NavbarAdmin from "./AdminNavbar";
 
 const ViewApplicants = () => {
   const { id } = useParams();
@@ -12,7 +13,7 @@ const ViewApplicants = () => {
 
   useEffect(() => {
     const fetchApplicants = async () => {
-      const userInfo = JSON.parse(localStorage.getItem("userInfo"));
+      const userInfo = getStoredUserInfo();
       if (!userInfo?.token) {
         setLoading(false);
         return;

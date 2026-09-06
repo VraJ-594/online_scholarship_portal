@@ -1,7 +1,8 @@
+import { getStoredUserInfo } from "../../utils/storage";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useContextState, authHeaders } from "../../context/userProvider";
-import NavbarAdmin from "./Navbar";
+import NavbarAdmin from "./AdminNavbar";
 import "../../index.css";
 
 const ListofScholarship = () => {
@@ -20,7 +21,7 @@ const ListofScholarship = () => {
 
   useEffect(() => {
     const fetchScholarships = async () => {
-      const userInfo = JSON.parse(localStorage.getItem("userInfo"));
+      const userInfo = getStoredUserInfo();
       if (!userInfo?.token) return;
 
       setLoading(true);

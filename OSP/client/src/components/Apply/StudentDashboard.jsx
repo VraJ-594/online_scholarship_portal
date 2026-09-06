@@ -1,3 +1,4 @@
+import { getStoredUserInfo } from "../../utils/storage";
 import React, { useEffect, useState } from "react";
 import { useContextState, authHeaders } from "../../context/userProvider";
 import { FaBoxOpen, FaExclamationCircle, FaSpinner } from "react-icons/fa";
@@ -15,7 +16,7 @@ const ScholarshipList = () => {
       setLoading(true);
       setError(null);
 
-      const userInfo = JSON.parse(localStorage.getItem("userInfo"));
+      const userInfo = getStoredUserInfo();
 
       // Safety check: ensure user is logged in AND has a token
       if (!userInfo || !userInfo.email || !userInfo.token) {

@@ -1,6 +1,7 @@
+import { getStoredUserInfo } from "../../utils/storage";
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import NavbarAdmin from "./Navbar";
+import NavbarAdmin from "./AdminNavbar";
 import { ToastContainer, toast, Bounce } from "react-toastify";
 import { useContextState } from "../../context/userProvider";
 import SimpleMdeReact from "react-simplemde-editor";
@@ -33,7 +34,7 @@ const mdeOptions = {
 const AdminAddScholarship = () => {
   const navigate = useNavigate();
   const { baseURL } = useContextState();
-  const userInfo = JSON.parse(localStorage.getItem("userInfo"));
+  const userInfo = getStoredUserInfo();
 
   const [formData, setFormData] = useState({
     scholarship_name: "",

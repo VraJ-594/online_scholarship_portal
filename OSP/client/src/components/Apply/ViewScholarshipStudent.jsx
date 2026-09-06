@@ -1,13 +1,14 @@
+import { getStoredUserInfo } from "../../utils/storage";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useContextState, authHeaders } from "../../context/userProvider";
+import NavbarStudent from "../Navbar/StudentNavbar";
 import { ToastContainer, toast, Bounce } from "react-toastify";
-import NavbarAdmin from "./Navbar";
 import ReactMarkdown from "react-markdown";
 import "react-toastify/dist/ReactToastify.css";
 import "../../index.css";
 
-// Custom Markdown styling to ensure it looks like a document, not a centered block
+// Custom Markdown styling for structured, left-aligned reading
 const markdownComponents = {
   p: ({ children }) => (
     <p className="text-slate-700 leading-relaxed mb-4">{children}</p>
@@ -33,7 +34,7 @@ const markdownComponents = {
   ),
 };
 
-const ViewScholarship = () => {
+const ViewScholarshipStudent = () => {
   const navigate = useNavigate();
   const { scholarship_id } = useParams();
   const { baseURL } = useContextState();
@@ -41,14 +42,15 @@ const ViewScholarship = () => {
   const [scholarshipDetails, setScholarshipDetails] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [isProfileComplete, setIsProfileComplete] = useState(false);
+  const [isApplying, setIsApplying] = useState(false);
 
   useEffect(() => {
-    const fetchScholarship = async () => {
-      const userInfo = JSON.parse(localStorage.getItem("userInfo") || "null");
+    const loadPageData = async () => {
+      const userInfo = getStoredUserInfo();
 
-      if (!userInfo?.token) {
-        setError("You must be logged in to view scholarship details.");
+      if (!userInfo?.token || !userInfo?.email) {
+        setError("You must be logged in to view this scholarship.");
         setLoading(false);
         return;
       }
@@ -59,12 +61,12 @@ const ViewScholarship = () => {
         return;
       }
 
-      try {
-        setLoading(true);
-        setError(null);
+      setLoading(true);
+      setError(null);
 
-        const response = await fetch(
-          `${baseURL}/api/scholarship/${scholarship_id}`,
+      try {
+        const scholarshipResponse = await fetch(
+          `${baseURL}/api/user/viewscholarship/${scholarship_id}`,
           {
             headers: {
               "Content-Type": "application/json",
@@ -73,99 +75,178 @@ const ViewScholarship = () => {
           },
         );
 
-        const data = await response.json().catch(() => ({}));
-
-        if (!response.ok) {
+        const scholarshipData = await scholarshipResponse
+          .json()
+          .catch(() => ({}));
+        if (!scholarshipResponse.ok) {
           throw new Error(
-            data.message || "Failed to fetch scholarship details.",
+            scholarshipData.message || "Failed to fetch scholarship details.",
           );
         }
 
         let eligibleCourses = [];
         try {
-          if (Array.isArray(data.eligible_courses)) {
-            eligibleCourses = data.eligible_courses;
-          } else if (data.eligible_courses) {
-            eligibleCourses = JSON.parse(data.eligible_courses);
+          if (Array.isArray(scholarshipData.eligible_courses)) {
+            eligibleCourses = scholarshipData.eligible_courses;
+          } else if (scholarshipData.eligible_courses) {
+            eligibleCourses = JSON.parse(scholarshipData.eligible_courses);
           }
         } catch {
           eligibleCourses = [];
         }
 
         setScholarshipDetails({
-          ...data,
+          ...scholarshipData,
           eligible_courses: eligibleCourses,
         });
+
+        const emailResponse = await fetch(
+          `${baseURL}/api/user/getemail/${encodeURIComponent(userInfo.email)}`,
+          {
+            headers: {
+              "Content-Type": "application/json",
+              ...authHeaders(),
+            },
+          },
+        );
+
+        if (!emailResponse.ok) {
+          setIsProfileComplete(false);
+          return;
+        }
+
+        const documentsResponse = await fetch(
+          `${baseURL}/api/user/getpdfurls/${encodeURIComponent(userInfo.email)}`,
+          {
+            headers: {
+              "Content-Type": "application/json",
+              ...authHeaders(),
+            },
+          },
+        );
+
+        if (!documentsResponse.ok) {
+          setIsProfileComplete(false);
+          return;
+        }
+
+        const documents = await documentsResponse.json().catch(() => ({}));
+        const requiredDocuments = [
+          "incomeCertificate",
+          "bankPassbook",
+          "aadharcard",
+          "tuitionFeeReceipt",
+          "nonTuitionFeeReceipt",
+          "class10MarkSheet",
+          "class12MarkSheet",
+          "currentEducationMarkSheet",
+        ];
+
+        const complete = requiredDocuments.every((document) =>
+          Boolean(documents[document]),
+        );
+        setIsProfileComplete(complete);
       } catch (err) {
-        console.error("Error fetching scholarship:", err);
-        setError(err.message || "Failed to fetch scholarship details.");
+        console.error("Error loading scholarship page:", err);
+        setError(err.message || "Failed to load scholarship information.");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchScholarship();
+    loadPageData();
   }, [baseURL, scholarship_id]);
 
-  const handleEdit = () => {
-    if (!scholarshipDetails) return;
-    navigate(`/admin/edit-scholarship/${scholarship_id}`, {
-      state: {
-        scholarship_id,
-        scholarshipName: scholarshipDetails.scholarship_name,
-        amount: scholarshipDetails.amount,
-        endDate: scholarshipDetails.end_date,
-        description: scholarshipDetails.description,
-        educationLevel: scholarshipDetails.education_level,
-        eligibleCourses: scholarshipDetails.eligible_courses,
-        minPercentage: scholarshipDetails.min_percentage,
-        annualFamilyIncome: scholarshipDetails.annual_family_income,
-        benefits: scholarshipDetails.benefits,
-        note: scholarshipDetails.note,
-      },
+  const getTodayDate = () => {
+    return new Date().toLocaleDateString("en-CA", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
     });
   };
 
-  const handleDelete = async () => {
-    if (isDeleting) return;
-    const confirmed = window.confirm(
-      "Are you sure you want to completely delete this scholarship?",
-    );
-    if (!confirmed) return;
-
-    const userInfo = JSON.parse(localStorage.getItem("userInfo") || "null");
-    if (!userInfo?.token) {
-      toast.error("Authentication expired. Please log in again.");
+  const handleApply = async () => {
+    if (!isProfileComplete) {
+      toast.error(
+        "Please complete your profile and upload all documents before applying.",
+      );
       return;
     }
 
-    setIsDeleting(true);
+    const userInfo = getStoredUserInfo();
+    if (!userInfo?.token || !userInfo?.email) {
+      toast.error("Your session has expired. Please log in again.");
+      return;
+    }
+
+    setIsApplying(true);
     try {
-      const response = await fetch(
-        `${baseURL}/api/scholarship/deleteScholarship/${scholarship_id}`,
+      const applicantResponse = await fetch(
+        `${baseURL}/api/user/getApplicantId`,
         {
-          method: "DELETE",
+          method: "GET",
           headers: {
             "Content-Type": "application/json",
             ...authHeaders(),
+            email: userInfo.email,
           },
         },
       );
 
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(data.message || "Failed to delete the scholarship.");
+      const applicantData = await applicantResponse.json().catch(() => ({}));
+      if (!applicantResponse.ok) {
+        throw new Error(
+          applicantData.message || "Failed to fetch applicant ID.",
+        );
       }
 
-      toast.success("Scholarship deleted successfully.");
+      const applicantId = applicantData?.applicant?.applicant_id;
+      if (!applicantId) {
+        throw new Error("Applicant ID was not found.");
+      }
+
+      const payload = {
+        scholarship_id,
+        applied_date: getTodayDate(),
+        applicant_id: applicantId,
+        status: "Pending",
+      };
+
+      const response = await fetch(
+        `${baseURL}/api/user/applyForScholarship/${scholarship_id}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...authHeaders(),
+          },
+          body: JSON.stringify(payload),
+        },
+      );
+
+      const responseData = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        if (response.status === 409) {
+          toast.warning(
+            responseData.message ||
+              "You have already applied for this scholarship.",
+          );
+          return;
+        }
+        throw new Error(
+          responseData.message || "Failed to apply for scholarship.",
+        );
+      }
+
+      toast.success("Successfully applied for the scholarship!");
       setTimeout(() => {
-        navigate("/admin");
+        navigate("/student/scholarship");
       }, 1200);
     } catch (err) {
-      console.error("Error deleting scholarship:", err);
-      toast.error(err.message || "Error deleting the scholarship.");
+      console.error("Error applying for scholarship:", err);
+      toast.error(err.message || "Error applying for the scholarship.");
     } finally {
-      setIsDeleting(false);
+      setIsApplying(false);
     }
   };
 
@@ -182,7 +263,7 @@ const ViewScholarship = () => {
   if (error) {
     return (
       <div className="min-h-screen bg-slate-50">
-        <NavbarAdmin />
+        <NavbarStudent />
         <div className="min-h-[calc(100vh-64px)] flex items-center justify-center px-4">
           <div className="text-center">
             <p className="text-red-500 font-medium mb-4">{error}</p>
@@ -202,29 +283,30 @@ const ViewScholarship = () => {
 
   return (
     <>
-      <NavbarAdmin />
+      <NavbarStudent />
       <ToastContainer
         position="top-right"
-        autoClose={2000}
+        autoClose={3000}
         theme="light"
         transition={Bounce}
       />
 
-      <div className="min-h-screen bg-slate-50 py-10 px-4 sm:px-6 lg:px-8">
+      {/* Main Content Area */}
+      <div className="min-h-screen bg-slate-50 pt-10 pb-32 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto">
           {/* Header Card */}
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-8">
-            <div className="bg-gradient-to-br from-slate-800 to-slate-900 px-6 sm:px-10 py-10 text-white relative">
+            <div className="bg-gradient-to-br from-blue-600 to-blue-700 px-6 sm:px-10 py-10 text-white relative">
               <button
                 type="button"
                 onClick={() => navigate(-1)}
-                className="absolute top-6 left-6 text-slate-300 hover:text-white text-sm font-medium transition-colors"
+                className="absolute top-6 left-6 text-blue-200 hover:text-white text-sm font-medium transition-colors"
               >
                 &larr; Back
               </button>
 
-              <p className="text-slate-300 text-sm font-semibold uppercase tracking-wide mb-3 mt-6 sm:mt-2">
-                Scholarship Details
+              <p className="text-blue-100 text-sm font-semibold uppercase tracking-wide mb-3 mt-6 sm:mt-2">
+                Scholarship Opportunity
               </p>
               <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-8">
                 {scholarshipDetails.scholarship_name}
@@ -232,7 +314,7 @@ const ViewScholarship = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="bg-white/10 border border-white/10 rounded-xl p-5">
-                  <p className="text-slate-300 text-sm font-medium">
+                  <p className="text-blue-100 text-sm font-medium">
                     Scholarship Amount
                   </p>
                   <p className="text-2xl font-bold mt-1">
@@ -241,7 +323,7 @@ const ViewScholarship = () => {
                 </div>
 
                 <div className="bg-white/10 border border-white/10 rounded-xl p-5">
-                  <p className="text-slate-300 text-sm font-medium">
+                  <p className="text-blue-100 text-sm font-medium">
                     Application Deadline
                   </p>
                   <p className="text-xl font-bold mt-1">
@@ -348,11 +430,11 @@ const ViewScholarship = () => {
               </div>
             </section>
 
-            {/* Internal Notes */}
+            {/* Additional Notes */}
             {scholarshipDetails.note && (
               <section>
                 <h2 className="text-2xl font-bold text-slate-900 mb-5">
-                  Internal Notes
+                  Additional Information
                 </h2>
                 <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 sm:p-8 text-left">
                   <ReactMarkdown components={markdownComponents}>
@@ -362,30 +444,40 @@ const ViewScholarship = () => {
               </section>
             )}
 
-            {/* Admin Actions */}
-            <div className="pt-4 pb-10 flex flex-col sm:flex-row justify-end gap-4">
-              <button
-                type="button"
-                onClick={handleEdit}
-                className="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold py-3 px-8 rounded-xl shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-slate-400"
-              >
-                Edit Scholarship
-              </button>
-
-              <button
-                type="button"
-                onClick={handleDelete}
-                disabled={isDeleting}
-                className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-8 rounded-xl shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1"
-              >
-                {isDeleting ? "Deleting..." : "Delete Scholarship"}
-              </button>
-            </div>
+            {!isProfileComplete && (
+              <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-2xl p-6 text-center font-medium">
+                Please complete your profile and upload all required documents
+                before applying.
+              </div>
+            )}
           </div>
+        </div>
+      </div>
+
+      {/* Sticky Bottom Apply Bar */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-md border-t border-slate-200 shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="hidden sm:block text-left">
+            <p className="text-sm text-slate-500 font-medium">
+              Ready to take the next step?
+            </p>
+            <p className="font-bold text-slate-900 text-lg">
+              Submit your scholarship application
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleApply}
+            disabled={isApplying || !isProfileComplete}
+            className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold text-lg px-10 py-3.5 rounded-xl shadow-md transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-0.5"
+          >
+            {isApplying ? "Applying..." : "Apply Now"}
+          </button>
         </div>
       </div>
     </>
   );
 };
 
-export default ViewScholarship;
+export default ViewScholarshipStudent;

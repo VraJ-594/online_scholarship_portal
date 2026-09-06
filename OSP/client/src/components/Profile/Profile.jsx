@@ -1,5 +1,6 @@
+import { getStoredUserInfo } from "../../utils/storage";
 import React, { useState, useEffect } from "react";
-import NavbarStudent from "../Navbar/Navbar";
+import NavbarStudent from "../Navbar/StudentNavbar";
 import BankDetails from "./BankDetails";
 import CommunicationAddress from "./CommunicationAddress";
 import PersonalDetails from "./PersonalDetails";
@@ -89,7 +90,7 @@ const Profile = () => {
 
   // 1. LOAD DATA (DB + LOCAL DRAFT)
   useEffect(() => {
-    const userInfo = JSON.parse(localStorage.getItem("userInfo"));
+    const userInfo = getStoredUserInfo();
     if (!userInfo || !userInfo.email) return;
 
     const email = userInfo.email;

@@ -5,19 +5,19 @@ import ForgotPassword from "./components/LoginRegister/ForgotPassword";
 import Admin from "./components/Admin/Admin";
 import AddScholarship from "./components/Admin/AddScholarship";
 import PrivateRoute from "./components/middleware/protectRoute"; // Import the PrivateRoute component
-import ViewScholarship from "./components/Admin/viewScholarship";
-import AdminEditScholarship from "./components/Admin/editScholarship";
+import ViewScholarship from "./components/Admin/ViewScholarship";
+import AdminEditScholarship from "./components/Admin/AdminEditScholarship";
 import ViewProfile from "./components/Admin/AdminProfile";
 import ListofScholarship from "./components/Admin/ListofScholarship";
-import ViewApplicants from "./components/Admin/viewapplicants";
+import ViewApplicants from "./components/Admin/ViewApplicants";
 import ApplicantData from "./components/Admin/ApplicantsData";
 import StudentRoute from "./components/middleware/studentRoute";
 import ScholarshipList from "./components/Apply/StudentDashboard";
 import Profile from "./components/Profile/Profile";
 import Apply_Dashboard from "./components/Apply/Apply_Dashboard";
-import ViewScholarshipStudent from "./components/Apply/viewScholarshipStudent";
+import ViewScholarshipStudent from "./components/Apply/ViewScholarshipStudent";
 import Scholarship from "./components/Apply/Scholarship";
-import Faqs from "./components/Faqs/faqs";
+import Faqs from "./components/Faqs/Faqs";
 
 function App() {
   return (

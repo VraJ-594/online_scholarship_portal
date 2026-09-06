@@ -1,21 +1,18 @@
+import { getStoredUserInfo } from "../utils/storage";
 import { createContext, useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 const UserContext = createContext();
 
 const UserProvider = ({ children }) => {
-  const [user, setUser] = useState(() => {
-    // Load user from localStorage on initial load
-    const storedUser = localStorage.getItem("userInfo");
-    return storedUser ? JSON.parse(storedUser) : null;
-  });
+  const [user, setUser] = useState(() => getStoredUserInfo());
   const [baseURL, setBaseURL] = useState(
     process.env.REACT_APP_API_URL || "http://localhost:8080"
   );
   const navigate = useNavigate();
 
   useEffect(() => {
-    const userInfo = JSON.parse(localStorage.getItem("userInfo"));
+    const userInfo = getStoredUserInfo();
     setUser(userInfo);
     // if (!user) {
     //   navigate('/');
@@ -40,8 +37,7 @@ export const useContextState = () => {
 };
 
 export const authHeaders = () => {
-  const userInfo = JSON.parse(localStorage.getItem("userInfo") || "null"
-  );
+  const userInfo = getStoredUserInfo();
 
   return userInfo?.token
     ? {

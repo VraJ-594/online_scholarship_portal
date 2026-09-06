@@ -1,15 +1,16 @@
+import { getStoredUserInfo } from "../../utils/storage";
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useContextState } from "../../context/userProvider";
-import NavbarAdmin from "./Navbar";
+import NavbarAdmin from "./AdminNavbar";
 import { ToastContainer, toast, Bounce } from "react-toastify";
 
-const ApplicantData = () => {
+const ApplicantsData = () => {
   const [applicants, setApplicants] = useState([]);
   const [loading, setLoading] = useState(true);
   const { id, sid } = useParams();
   const { baseURL } = useContextState();
-  const userInfo = JSON.parse(localStorage.getItem("userInfo"));
+  const userInfo = getStoredUserInfo();
   const [selectedStatus, setSelectedStatus] = useState({});
   const navigate = useNavigate();
 
@@ -21,14 +22,14 @@ const ApplicantData = () => {
           {
             headers: {
               "Content-Type": "application/json",
-              authorization: `Bearer ${userInfo.token}`,
+              authorization: `Bearer ${userInfo?.token}`,
             },
           },
         );
         if (!response.ok) throw new Error("Failed to load applicant data.");
 
-        const { data } = await response.json().catch(() => ({ data: [] }));
-        setApplicants(data);
+        const { data } = await response.json();
+        setApplicants(data || []);
 
         const initialStatus = data.reduce((acc, applicant) => {
           acc[applicant.applicant_id] = applicant.status;
@@ -42,7 +43,7 @@ const ApplicantData = () => {
       }
     };
     fetchApplicants();
-  }, [baseURL, id, sid, userInfo.token]);
+  }, [baseURL, id, sid, userInfo?.token]);
 
   const handleStatusChange = (applicantId, status) => {
     setSelectedStatus((prev) => ({ ...prev, [applicantId]: status }));
@@ -55,7 +56,7 @@ const ApplicantData = () => {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          authorization: `Bearer ${userInfo.token}`,
+          authorization: `Bearer ${userInfo?.token}`,
         },
         body: JSON.stringify({
           applicant_id: applicantId,
@@ -101,7 +102,7 @@ const ApplicantData = () => {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${userInfo.token}`, // Admin's JWT token
+            Authorization: `Bearer ${userInfo?.token}`, // Admin's JWT token
           },
         },
       );
@@ -349,4 +350,4 @@ const ApplicantData = () => {
   );
 };
 
-export default ApplicantData;
+export default ApplicantsData;

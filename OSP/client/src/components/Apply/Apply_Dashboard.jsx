@@ -1,7 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import useFetch from "./useFetch";
-import NavbarStudent from "../Navbar/Navbar";
+import useFetch from "../../hooks/useFetch";
+import NavbarStudent from "../Navbar/StudentNavbar";
 import { useContextState } from "../../context/userProvider";
 import imgdaiict from "../assets/imgdaiict.jpg";
 import "../../index.css";

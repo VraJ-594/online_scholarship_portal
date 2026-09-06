@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { FaPlusCircle, FaMinusCircle } from "react-icons/fa";
 import logo from "../assets/logo.png"; // Ensure the correct path to your logo
-import NavbarStudent from "../Navbar/Navbar";
+import NavbarStudent from "../Navbar/StudentNavbar";
 
 const questions = [
   {

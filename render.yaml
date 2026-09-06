@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: osp-server
+    env: node
+    plan: free
+    rootDir: OSP/server
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: token_api
+        sync: false
+      - key: user
+        sync: false
+      - key: pass
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: NODE_ENV
+        value: production
+      - key: FRONTEND_URL
+        sync: false

@@ -30,6 +30,18 @@ const CurrentEducationDetails = ({
       return;
     }
 
+    if (parseFloat(value) > 10) {
+      setValidationError("CGPA cannot be greater than 10.");
+      setValidationErrorStatus(true);
+      return;
+    }
+
+    if (name === "currentCgpaTotal" && value !== "" && parseFloat(value) < 1) {
+      setValidationError("Total CGPA scale must be at least 1.");
+      setValidationErrorStatus(true);
+      return;
+    }
+
     const cgpaObtained = name === "currentCgpaObtained" ? value : formData.currentCgpaObtained;
     const cgpaTotal = name === "currentCgpaTotal" ? value : formData.currentCgpaTotal;
 

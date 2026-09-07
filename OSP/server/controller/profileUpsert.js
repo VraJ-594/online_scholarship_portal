@@ -8,6 +8,23 @@ const handleProfileData = async (req, res, next) => {
     return res.status(403).json({ message: "Forbidden: You do not have permission to modify this profile." });
   }
 
+  // The DB column for these is a plain VARCHAR with no CHECK constraint --
+  // the 0-10 / 1-10 range is a pure business rule the client can't be
+  // trusted to enforce alone (the frontend has matching validation, but
+  // this is what actually stops a bad value from being written).
+  const cgpaObtained = parseFloat(formData.currentCgpaObtained);
+  const cgpaTotal = parseFloat(formData.currentCgpaTotal);
+  if (
+    Number.isNaN(cgpaObtained) || Number.isNaN(cgpaTotal) ||
+    cgpaObtained < 0 || cgpaObtained > 10 ||
+    cgpaTotal < 1 || cgpaTotal > 10 ||
+    cgpaObtained > cgpaTotal
+  ) {
+    return res.status(400).json({
+      message: "CGPA obtained must be between 0 and 10, total scale between 1 and 10, and obtained cannot exceed total.",
+    });
+  }
+
   // Grab a dedicated client from the pool to run a Transaction
   const client = await pool.connect();
 
@@ -151,7 +168,25 @@ const handleProfileData = async (req, res, next) => {
     // IF ANYTHING FAILS, ERASE ALL PARTIAL CHANGES
     await client.query('ROLLBACK');
     console.error("---> [userprofile] TRANSACTION FAILED & ROLLED BACK:", error.message);
-    next(error); 
+
+    // Postgres error codes: https://www.postgresql.org/docs/current/errcodes-appendix.html
+    // 23502 = not_null_violation, 23514 = check_violation -- these mean a
+    // required field was left empty or a value was out of range. The raw
+    // driver message (e.g. "invalid input syntax for type integer: \"\"")
+    // is not something a student can act on, so translate it instead of
+    // forwarding it verbatim via the generic error handler.
+    if (error.code === "23502") {
+      return res.status(400).json({
+        message: "One or more required fields were left empty. Please check every section for a red asterisk (*) and try again.",
+      });
+    }
+    if (error.code === "23514") {
+      return res.status(400).json({
+        message: "One of your entries is out of the allowed range (e.g. fees, marks, or CGPA must be zero or positive). Please double-check your numeric fields and try again.",
+      });
+    }
+
+    next(error);
   } finally {
     // VERY IMPORTANT: Return the client to the pool so the server doesn't freeze
     client.release();

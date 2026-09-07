@@ -44,10 +44,10 @@ const PersonalDetails = ({ formData, handleInputChange }) => {
     },
     { label: "Category", name: "category", required: true },
     { label: "Mobile Number", name: "mobileNumber", required: true },
-    { label: "Parent's Full Name", name: "parentName" },
+    { label: "Parent's Full Name", name: "parentName", required: true },
     { label: "Occupation", name: "occupation" },
     { label: "Parent's Mobile No", name: "parentMobile" },
-    { label: "Income Limit (Annual ₹)", name: "incomelimit" },
+    { label: "Income Limit (Annual ₹)", name: "incomelimit", required: true },
   ];
 
   return (

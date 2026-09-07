@@ -218,7 +218,9 @@ const Profile = () => {
     const formData2 = new FormData();
     formData2.append("file", file);
 
-    const toastId = toast.loading(`Uploading ${key}...`);
+    const toastId = toast.loading(
+      `Uploading ${key}... this can take up to a minute if the server has been idle.`,
+    );
     try {
       const response = await fetch(
         `${baseURL}/api/user/pdf/${formData.email}/${key}`,
@@ -392,7 +394,7 @@ const Profile = () => {
       <ToastContainer
         position="top-right"
         autoClose={3000}
-        limit={2}
+        limit={8}
         newestOnTop={true}
         theme="light"
         transition={Bounce}

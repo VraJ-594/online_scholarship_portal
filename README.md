@@ -61,9 +61,11 @@ npm start
 
 # Features  
 
-- *Student Registration and Login:*  
-  - Secure account registration with bcrypt-hashed passwords.  
-  - Login with "Forgot Password" functionality (OTP-based) for account recovery.  
+- *Student Login:*  
+  - One-click Google Sign-In, restricted to official `@dau.ac.in` accounts and verified server-side -- the same click creates the account on a student's first sign-in, no separate registration step.  
+
+- *Admin Login:*  
+  - Traditional email + password, with "Forgot Password" (OTP-based) for account recovery. Admin accounts are provisioned directly in the database, not self-registered.  
 
 - *Scholarship Application Management:*  
   - Students can view available scholarships and apply with required details and documents.  
@@ -86,10 +88,10 @@ npm start
 # Tech Stack  
 
 - *Frontend:*  
-  - React 18, React Router, Tailwind CSS
+  - React 18, React Router, Tailwind CSS, `@react-oauth/google`
 
 - *Backend:*  
-  - Node.js, Express.js, JSON Web Tokens (auth), bcrypt (password hashing)
+  - Node.js, Express.js, JSON Web Tokens (auth), bcrypt (password hashing), Google OAuth (`google-auth-library`, domain-restricted sign-in for students)
 
 - *Database:*  
   - PostgreSQL, managed with [node-pg-migrate](https://github.com/salsita/node-pg-migrate)
@@ -113,8 +115,8 @@ npm start
 ## Student Features  
 
 - *Account Management:*  
-  - Register with a username, email, and password.  
-  - Login and recover accounts using "Forgot Password" (OTP-based).  
+  - Sign in with a `@dau.ac.in` Google account -- first-time sign-in creates the account automatically, no separate registration form. This is the only login method shown on the student-facing UI.  
+  - A small number of accounts predating Google Sign-In still use email + password with OTP-based "Forgot Password" recovery; new password-based signups are also restricted to `@dau.ac.in`, though the form for them isn't surfaced to students in the UI.  
 
 - *Scholarship Application:*  
   - Browse available scholarships and apply with necessary documents.  
@@ -156,10 +158,13 @@ npm start
 ---
 
 # Deployment  
-- *Frontend:* [Vercel](https://osp-silk.vercel.app) -- auto-deploys on push to `main`
+- *Frontend:* [Vercel](https://osp-silk.vercel.app) -- deployed via the Vercel CLI (`vercel --prod` from `OSP/client`). Not connected to GitHub auto-deploy, so a push to `main` alone does **not** update it -- redeploy explicitly after frontend changes.
 - *Backend:* [Render](https://osp-server.onrender.com) -- auto-deploys on push to `main` (free tier: the first request after inactivity can take 30-60s to wake up)
 - *Database:* PostgreSQL on Supabase, accessed via its session pooler (Render's outbound network doesn't support the direct connection's IPv6-only address)
 - *File Storage:* Cloudinary  
+
+### Required environment variables
+Both `OSP/server/.env.example` and `OSP/client/.env.example` list every variable needed, including `GOOGLE_CLIENT_ID` / `REACT_APP_GOOGLE_CLIENT_ID` for Google Sign-In -- see [Google Cloud Console](https://console.cloud.google.com/apis/credentials) to create your own OAuth Client ID (Web application type; add your dev and deployed origins under "Authorized JavaScript origins").
 
 ---
 

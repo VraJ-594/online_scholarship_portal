@@ -2,6 +2,7 @@
 
 ## Table of Contents  
 * [Introduction](#introduction)  
+* [Architecture](#architecture)  
 * [Installation Guide](#installation-guide)  
   * [Front-end](#front-end)  
   * [Back-end](#back-end)  
@@ -18,6 +19,39 @@
 
 # Introduction  
 The *Online Scholarship Portal* is a modern web application designed to simplify the scholarship process for students and administrators. It offers a seamless platform for students to register, apply for scholarships, track their application statuses, and upload required documents, while administrators can efficiently manage scholarships and applications.  
+
+# Architecture
+
+Modeled with [LikeC4](https://likec4.dev/) (the [C4 model](https://c4model.com/)) — source of truth is [`docs/architecture/`](docs/architecture), rendered below as static images so they display on GitHub.
+
+### System Context
+![System Context diagram](docs/architecture/images/index.png)
+
+### Containers
+![Containers diagram](docs/architecture/images/containers.png)
+
+<details>
+<summary>Database — who reads and writes it</summary>
+
+![Database diagram](docs/architecture/images/database.png)
+
+</details>
+
+- **Sign-in:** students authenticate via Google (restricted to `@dau.ac.in`, verified server-side); admins use email + password. Either way the backend issues a JWT.
+- **Every API request** from the React app carries that JWT through Express routes → middleware (`auth`/`admin`/`error`/`logger`) → controllers.
+- **Controllers** read/write PostgreSQL (Supabase, `osp` schema) directly for scholarships, applications, and profiles.
+- **Document uploads** pass through Multer (parses the request, writes a temp file, verifies the real file bytes) before landing in Cloudinary as a private asset — only the `public_id` is stored in Postgres, never a URL.
+- **Viewing a document** mints a signed, 15-minute Cloudinary URL on demand instead of returning a stored link.
+
+### Architecture as code
+- [`model.c4`](docs/architecture/model.c4) — actors, systems, containers, and their relationships
+- [`views.c4`](docs/architecture/views.c4) — the three views rendered above
+
+To explore it interactively (pan, zoom, click into containers) instead of the static PNGs:
+```bash
+npx likec4 serve docs/architecture
+# open http://localhost:5173
+```
 
 # Installation Guide  
 

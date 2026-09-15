@@ -1,0 +1,18 @@
+// Views for the Online Scholarship Portal model (model.c4, same folder).
+
+views {
+  view index {
+    title 'System Context — Online Scholarship Portal'
+    include student, admin, osp, google, cloudinary, supabase, gmail
+  }
+
+  view containers of osp {
+    title 'Containers — Online Scholarship Portal'
+    include *
+  }
+
+  view database of osp.database {
+    title 'Database — Who Reads and Writes It'
+    include *
+  }
+}

@@ -1,0 +1,70 @@
+// LikeC4 model for the Online Scholarship Portal.
+// Views live in views.c4 (same folder) — LikeC4 treats every .c4 file
+// in a directory as one project, so no import is needed.
+// Preview/export: LikeC4 VS Code extension, or https://playground.likec4.dev
+// Docs: https://likec4.dev/docs/
+
+specification {
+  element actor {
+    style {
+      shape person
+      color secondary
+    }
+  }
+  element system
+  element externalSystem {
+    style {
+      color muted
+    }
+  }
+  element container
+}
+
+model {
+  student = actor 'Student' {
+    description 'A DAU student (@dau.ac.in) who browses and applies for scholarships'
+  }
+  admin = actor 'Admin' {
+    description 'Staff member who manages scholarships and reviews applications'
+  }
+
+  osp = system 'Online Scholarship Portal' {
+    description 'Lets students apply for scholarships, track status, and upload documents; lets admins manage scholarships and applications'
+
+    webapp = container 'Web App' {
+      description 'Single-page app students and admins sign into'
+      technology 'React 18, React Router, Tailwind CSS'
+    }
+    api = container 'API Server' {
+      description 'Routes, auth/admin middleware, and business-logic controllers'
+      technology 'Node.js, Express.js'
+    }
+    database = container 'Database' {
+      description 'Scholarships, applications, and profile data'
+      technology 'PostgreSQL (osp schema)'
+    }
+  }
+
+  google = externalSystem 'Google OAuth' {
+    description 'Verifies student identity via @dau.ac.in Google accounts'
+  }
+  cloudinary = externalSystem 'Cloudinary' {
+    description 'Stores uploaded documents privately; serves time-limited signed URLs'
+  }
+  supabase = externalSystem 'Supabase' {
+    description 'Manages and hosts the PostgreSQL database'
+  }
+  gmail = externalSystem 'Gmail SMTP' {
+    description 'Delivers OTP emails for admin password reset'
+  }
+
+  student -> osp.webapp 'applies for scholarships, uploads documents, tracks status' 'HTTPS'
+  admin -> osp.webapp 'manages scholarships, reviews applications, views analytics' 'HTTPS'
+
+  osp.webapp -> osp.api 'calls' 'HTTPS + JWT'
+  osp.api -> osp.database 'reads and writes' 'SQL'
+  osp.api -> google 'verifies student identity' 'OAuth2 / HTTPS'
+  osp.api -> cloudinary 'uploads and retrieves private documents' 'HTTPS API'
+  osp.database -> supabase 'hosted on'
+  osp.api -> gmail 'sends OTP emails' 'SMTP'
+}

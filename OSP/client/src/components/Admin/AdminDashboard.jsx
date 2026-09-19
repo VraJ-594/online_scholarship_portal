@@ -1,7 +1,7 @@
 import { getStoredUserInfo } from "../../utils/storage";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useContextState, authHeaders } from "../../context/userProvider";
+import { useContextState } from "../../context/userProvider";
 import "../../index.css";
 
 const AdminDashboard = () => {
@@ -27,7 +27,7 @@ const AdminDashboard = () => {
     const fetchScholarships = async () => {
       const userInfo = getStoredUserInfo();
 
-      if (!userInfo?.token) {
+      if (!userInfo?.email) {
         setError("You must be logged in to view scholarships.");
         setIspending(false);
         return;
@@ -40,9 +40,9 @@ const AdminDashboard = () => {
         const response = await fetch(
           `${baseURL}/api/scholarship/getScholarships?page=${page}&limit=${limit}&search=${encodeURIComponent(searchTerm)}`,
           {
+            credentials: "include",
             headers: {
               "Content-Type": "application/json",
-              ...authHeaders(),
             },
           },
         );

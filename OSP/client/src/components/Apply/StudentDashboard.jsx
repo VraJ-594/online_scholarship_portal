@@ -1,6 +1,6 @@
 import { getStoredUserInfo } from "../../utils/storage";
 import React, { useEffect, useState } from "react";
-import { useContextState, authHeaders } from "../../context/userProvider";
+import { useContextState } from "../../context/userProvider";
 import { FaBoxOpen, FaExclamationCircle, FaSpinner } from "react-icons/fa";
 import "../../index.css";
 
@@ -18,8 +18,8 @@ const ScholarshipList = () => {
 
       const userInfo = getStoredUserInfo();
 
-      // Safety check: ensure user is logged in AND has a token
-      if (!userInfo || !userInfo.email || !userInfo.token) {
+      // Safety check: ensure user is logged in
+      if (!userInfo || !userInfo.email) {
         setError("User session not found. Please log in again.");
         setLoading(false);
         return;
@@ -30,10 +30,10 @@ const ScholarshipList = () => {
           `${baseURL}/api/user/getAppliedScholarships`,
           {
             method: "GET",
+            credentials: "include",
             headers: {
               "Content-Type": "application/json",
               email: userInfo.email, // Kept to preserve original backend contract
-              ...authHeaders(), // INJECTED JWT TOKEN HERE!
             },
           },
         );

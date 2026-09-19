@@ -27,7 +27,7 @@ const LoginRegister = () => {
 
   useEffect(() => {
     const userInfo = getStoredUserInfo();
-    if (userInfo && userInfo.token) {
+    if (userInfo && userInfo.email) {
       roleCheck(userInfo);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -43,9 +43,9 @@ const LoginRegister = () => {
     try {
       const response = await fetch(`${baseURL}/api/user/authRole`, {
         method: "POST",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
-          authorization: `Bearer ${userInfo.token}`,
         },
         body: JSON.stringify(userInfo),
       });
@@ -93,6 +93,7 @@ const LoginRegister = () => {
     try {
       const response = await fetch(`${baseURL}/api/user/login`, {
         method: "POST",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
@@ -124,6 +125,7 @@ const LoginRegister = () => {
     try {
       const response = await fetch(`${baseURL}/api/user/google-login`, {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ credential }),
       });

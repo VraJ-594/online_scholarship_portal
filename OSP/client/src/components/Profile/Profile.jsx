@@ -8,7 +8,7 @@ import CurrentAcademicDetails from "./CurrentAcademicDetails";
 import Class10Details from "./Class10Details";
 import Class12Details from "./Class12Details";
 import CurrentEducationDetails from "./CurrentEducationDetails";
-import { useContextState, authHeaders } from "../../context/userProvider";
+import { useContextState } from "../../context/userProvider";
 import { ToastContainer, toast, Bounce } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
@@ -99,7 +99,7 @@ const Profile = () => {
       try {
         // Fetch PDFs from DB
         const pdfRes = await fetch(`${baseURL}/api/user/getpdfurls/${email}`, {
-          headers: { ...authHeaders() },
+          credentials: "include",
         });
         if (pdfRes.ok) {
           const pdfData = await pdfRes.json().catch(() => ({}));
@@ -121,7 +121,7 @@ const Profile = () => {
         const profileRes = await fetch(
           `${baseURL}/api/user/getprofile/${email}`,
           {
-            headers: { ...authHeaders() },
+            credentials: "include",
           },
         );
 
@@ -226,7 +226,7 @@ const Profile = () => {
         `${baseURL}/api/user/pdf/${formData.email}/${key}`,
         {
           method: "POST",
-          headers: { ...authHeaders() },
+          credentials: "include",
           body: formData2,
         },
       );
@@ -264,9 +264,9 @@ const Profile = () => {
         `${baseURL}/api/user/clearpdf/${formData.email}/${key}/`,
         {
           method: "POST",
+          credentials: "include",
           headers: {
             "Content-Type": "application/json",
-            ...authHeaders(),
           },
           body: JSON.stringify({}),
         },
@@ -306,7 +306,7 @@ const Profile = () => {
         `${baseURL}/api/user/documents/view/${formData.email}/${documentTypeKey}`,
         {
           method: "GET",
-          headers: { ...authHeaders() },
+          credentials: "include",
         },
       );
 
@@ -365,9 +365,9 @@ const Profile = () => {
     try {
       const response = await fetch(`${baseURL}/api/user/profile`, {
         method: "POST",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
-          ...authHeaders(),
         },
         body: JSON.stringify(formData),
       });

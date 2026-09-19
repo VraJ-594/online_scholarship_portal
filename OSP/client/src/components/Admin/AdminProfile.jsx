@@ -6,7 +6,6 @@ import { ToastContainer, toast, Bounce } from "react-toastify";
 import NavbarAdmin from "./AdminNavbar.jsx";
 
 const AdminProfile = () => {
-  const userInfo = getStoredUserInfo();
   const { baseURL } = useContextState();
   
   const [profile, setProfile] = useState({
@@ -25,9 +24,9 @@ const AdminProfile = () => {
         if (!obj?.email) return;
 
         const response = await fetch(`${baseURL}/api/user/getuserprofile?email=${obj.email}`, {
+          credentials: "include",
           headers: {
             "Content-Type": "application/json",
-            authorization: `Bearer ${userInfo.token}`,
           },
         });
         
@@ -71,9 +70,9 @@ const AdminProfile = () => {
       
       const response = await fetch(`${baseURL}/api/user/updateuserprofile`, {
         method: "POST",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
-          authorization: `Bearer ${userInfo.token}`,
         },
         body: JSON.stringify({
           email: obj.email,

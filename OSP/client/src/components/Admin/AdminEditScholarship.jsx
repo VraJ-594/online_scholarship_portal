@@ -1,4 +1,3 @@
-import { getStoredUserInfo } from "../../utils/storage";
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useContextState } from "../../context/userProvider";
@@ -35,7 +34,6 @@ const AdminEditScholarship = () => {
   const navigate = useNavigate();
   const { state } = useLocation();
   const { baseURL } = useContextState();
-  const userInfo = getStoredUserInfo();
 
   const [isLoading, setIsLoading] = useState(false);
 
@@ -140,9 +138,9 @@ const AdminEditScholarship = () => {
         `${baseURL}/api/scholarship/editScholarship/${formData.scholarship_id}`,
         {
           method: "PUT",
+          credentials: "include",
           headers: {
             "Content-Type": "application/json",
-            authorization: `Bearer ${userInfo.token}`,
           },
           body: JSON.stringify(payload),
         },

@@ -1,7 +1,7 @@
 import { getStoredUserInfo } from "../../utils/storage";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useContextState, authHeaders } from "../../context/userProvider";
+import { useContextState } from "../../context/userProvider";
 import { ToastContainer, toast, Bounce } from "react-toastify";
 import NavbarAdmin from "./AdminNavbar";
 import ReactMarkdown from "react-markdown";
@@ -48,7 +48,7 @@ const ViewScholarship = () => {
     const fetchScholarship = async () => {
       const userInfo = getStoredUserInfo();
 
-      if (!userInfo?.token) {
+      if (!userInfo?.email) {
         setError("You must be logged in to view scholarship details.");
         setLoading(false);
         return;
@@ -67,9 +67,9 @@ const ViewScholarship = () => {
         const response = await fetch(
           `${baseURL}/api/scholarship/${scholarship_id}`,
           {
+            credentials: "include",
             headers: {
               "Content-Type": "application/json",
-              ...authHeaders(),
             },
           },
         );
@@ -135,7 +135,7 @@ const ViewScholarship = () => {
     if (!confirmed) return;
 
     const userInfo = getStoredUserInfo();
-    if (!userInfo?.token) {
+    if (!userInfo?.email) {
       toast.error("Authentication expired. Please log in again.");
       return;
     }
@@ -146,9 +146,9 @@ const ViewScholarship = () => {
         `${baseURL}/api/scholarship/deleteScholarship/${scholarship_id}`,
         {
           method: "DELETE",
+          credentials: "include",
           headers: {
             "Content-Type": "application/json",
-            ...authHeaders(),
           },
         },
       );

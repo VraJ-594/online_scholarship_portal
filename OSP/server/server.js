@@ -1,6 +1,7 @@
 const express = require("express");
 const app = express();
 const cors = require("cors");
+const cookieParser = require("cookie-parser");
 const dotenv = require("dotenv");
 
 const userRoutes = require("./Routes/userRoutes");
@@ -15,11 +16,18 @@ dotenv.config();
 const port = process.env.PORT || 8080;
 
 app.use(express.json());
+app.use(cookieParser());
 
-// Dynamic CORS configuration based on environment
+// Dynamic CORS configuration based on environment.
+// credentials: true is required for the browser to send/accept the
+// HttpOnly auth cookie cross-origin (frontend and backend are on different
+// domains in production) -- it only works with an exact origin, never "*",
+// which is also what keeps a state-changing request's CORS preflight from
+// ever succeeding for any origin other than our own frontend.
 app.use(
   cors({
     origin: process.env.FRONTEND_URL || "http://localhost:3000",
+    credentials: true,
   })
 );
 

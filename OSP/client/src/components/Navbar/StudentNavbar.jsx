@@ -1,16 +1,27 @@
 import React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useContextState } from "../../context/userProvider";
 import "../../index.css";
 import logo from "../assets/logo.png"; // Note: Keep this as your actual file path
 
 const NavbarStudent = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { baseURL } = useContextState();
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     const confirmSave = window.confirm("Are you sure you want to log out?");
     if (!confirmSave) {
       return;
+    }
+    try {
+      await fetch(`${baseURL}/api/user/logout`, {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch {
+      // Clearing local session state below still logs the user out client-side
+      // even if this request fails (e.g. offline).
     }
     localStorage.removeItem("userInfo");
     localStorage.removeItem("roleChecked");

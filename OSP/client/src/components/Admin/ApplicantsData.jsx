@@ -1,4 +1,3 @@
-import { getStoredUserInfo } from "../../utils/storage";
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useContextState } from "../../context/userProvider";
@@ -10,7 +9,6 @@ const ApplicantsData = () => {
   const [loading, setLoading] = useState(true);
   const { id, sid } = useParams();
   const { baseURL } = useContextState();
-  const userInfo = getStoredUserInfo();
   const [selectedStatus, setSelectedStatus] = useState({});
   const navigate = useNavigate();
 
@@ -20,9 +18,9 @@ const ApplicantsData = () => {
         const response = await fetch(
           `${baseURL}/api/scholarship/getApplicantData?id=${id}&scholarship_id=${sid}`,
           {
+            credentials: "include",
             headers: {
               "Content-Type": "application/json",
-              authorization: `Bearer ${userInfo?.token}`,
             },
           },
         );
@@ -43,7 +41,7 @@ const ApplicantsData = () => {
       }
     };
     fetchApplicants();
-  }, [baseURL, id, sid, userInfo?.token]);
+  }, [baseURL, id, sid]);
 
   const handleStatusChange = (applicantId, status) => {
     setSelectedStatus((prev) => ({ ...prev, [applicantId]: status }));
@@ -54,9 +52,9 @@ const ApplicantsData = () => {
     try {
       const response = await fetch(`${baseURL}/api/scholarship/statusUpdate`, {
         method: "PUT",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
-          authorization: `Bearer ${userInfo?.token}`,
         },
         body: JSON.stringify({
           applicant_id: applicantId,
@@ -100,9 +98,9 @@ const ApplicantsData = () => {
         `${baseURL}/api/user/documents/view/${studentEmail}/${documentTypeKey}`,
         {
           method: "GET",
+          credentials: "include",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${userInfo?.token}`, // Admin's JWT token
           },
         },
       );

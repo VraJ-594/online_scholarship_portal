@@ -1,5 +1,6 @@
 const pool = require("../config/db");
 const generateToken = require("../config/generateToken");
+const { setAuthCookie } = require("../config/authCookie");
 const { verifyGoogleIdToken } = require("../config/googleClient");
 
 const ALLOWED_DOMAIN = "dau.ac.in";
@@ -53,12 +54,12 @@ const googleLogin = async (req, res, next) => {
       user = inserted.rows[0];
     }
 
+    setAuthCookie(res, generateToken({ email: user.email, role: user.role }));
     return res.status(200).json({
       role: user.role,
       username: user.username,
       email: user.email,
       pic: user.pic,
-      token: generateToken({ email: user.email, role: user.role }),
     });
   } catch (error) {
     next(error);

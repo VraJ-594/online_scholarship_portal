@@ -36,16 +36,6 @@ export const useContextState = () => {
   return useContext(UserContext);
 };
 
-export const authHeaders = () => {
-  const userInfo = getStoredUserInfo();
-
-  return userInfo?.token
-    ? {
-        Authorization: `Bearer ${userInfo.token}`,
-      }
-    : {};
-};
-
 export default UserProvider;
 
 

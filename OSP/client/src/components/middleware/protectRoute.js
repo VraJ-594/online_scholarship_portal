@@ -28,9 +28,9 @@ const PrivateRoute = ({ children }) => {
       try {
         const response = await fetch(`${baseURL}/api/user/authRole`, {
           method: "POST",
+          credentials: "include",
           headers: {
             "Content-Type": "application/json",
-            authorization: `Bearer ${userInfo.token}`,
           },
           body: JSON.stringify(userInfo),
         });

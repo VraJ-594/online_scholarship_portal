@@ -1,7 +1,7 @@
 import { getStoredUserInfo } from "../../utils/storage";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useContextState, authHeaders } from "../../context/userProvider";
+import { useContextState } from "../../context/userProvider";
 import NavbarAdmin from "./AdminNavbar";
 import "../../index.css";
 
@@ -22,16 +22,16 @@ const ListofScholarship = () => {
   useEffect(() => {
     const fetchScholarships = async () => {
       const userInfo = getStoredUserInfo();
-      if (!userInfo?.token) return;
+      if (!userInfo?.email) return;
 
       setLoading(true);
       try {
         const response = await fetch(
           `${baseURL}/api/scholarship/getScholarships?page=${page}&limit=${limit}&search=${encodeURIComponent(searchTerm)}`,
           {
+            credentials: "include",
             headers: {
               "Content-Type": "application/json",
-              ...authHeaders(),
             },
           },
         );

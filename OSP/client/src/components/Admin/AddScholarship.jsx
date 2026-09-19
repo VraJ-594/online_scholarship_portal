@@ -118,7 +118,7 @@ const AdminAddScholarship = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!userInfo || !userInfo.token) {
+    if (!userInfo || !userInfo.email) {
       toast.error("Authentication error. Please log in again.");
       return;
     }
@@ -142,9 +142,9 @@ const AdminAddScholarship = () => {
         `${baseURL}/api/scholarship/addScholarship`,
         {
           method: "POST",
+          credentials: "include",
           headers: {
             "Content-Type": "application/json",
-            authorization: `Bearer ${userInfo.token}`,
           },
           body: JSON.stringify(payload),
         },

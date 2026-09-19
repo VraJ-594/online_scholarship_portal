@@ -50,6 +50,7 @@ describe('authUser() authUser method', () => {
     res = {
       status: jest.fn().mockReturnThis(),
       json: jest.fn(),
+      cookie: jest.fn(),
     };
 
     jest.clearAllMocks();
@@ -80,13 +81,17 @@ describe('authUser() authUser method', () => {
       await authUser(req, res);
 
       // Assert
+      expect(res.cookie).toHaveBeenCalledWith(
+        'osp_token',
+        'mockedToken',
+        expect.any(Object),
+      );
       expect(res.status).toHaveBeenCalledWith(201);
       expect(res.json).toHaveBeenCalledWith({
         role: 'user',
         username: 'testuser',
         email: 'test@example.com',
         pic: 'profilepic.jpg',
-        token: 'mockedToken',
       });
     });
   });

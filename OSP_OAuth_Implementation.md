@@ -16,8 +16,22 @@ separate things with two separate jobs, it clicks:
 |---|---|---|
 | **Who signs it** | Google | Our own server (`token_api` secret) |
 | **Proves** | "This person really did just log into a real `dau.ac.in` Google account" | "This browser already logged in — let them through" |
-| **Lifetime** | Used once, in the split second of login, then thrown away | 30 days, stored in `localStorage`, sent on every request |
+| **Lifetime** | Used once, in the split second of login, then thrown away | 7 days, stored in an HttpOnly `osp_token` cookie, sent automatically on every request |
 | **Where it's checked** | `config/googleClient.js`, once, during `/google-login` | `middleware/authMiddleware.js`, on every protected route |
+
+**Update (2026-09-18):** the app token used to be handed to the frontend in
+the response body and stored in `localStorage`, readable by any JS running
+on the page. It's now set server-side as an `HttpOnly` cookie
+(`config/authCookie.js`) — the frontend never sees the token value at all,
+it just gets `credentials: "include"` added to every `fetch` call so the
+browser attaches the cookie automatically. This closes the XSS
+token-theft risk that made a stolen 30-day token dangerous; the lifetime
+was also cut to 7 days as a second layer of the same fix. See
+`/api/user/logout` (new) for how the cookie gets cleared, and
+`server.js`'s CORS config (`credentials: true`, exact origin, never `*`)
+for why cross-site `SameSite=None` cookies don't need a separate CSRF
+token here: a state-changing request from any origin other than the
+deployed frontend fails CORS preflight before it ever reaches a route.
 
 So: Google Sign-In did **not** replace JWTs. It replaced the *password
 check*. The thing that actually keeps you logged in as you click around the
@@ -106,11 +120,17 @@ already-existing, already-trusted login system.
        `password = NULL` (they have no password — they never will unless
        they separately use the password flow).
 6. The backend signs **our own** JWT — the app session token, same
-   `generateToken()` function password login already used — and returns
-   it in the same response shape `/api/user/login` always returned.
-7. The frontend stores that token in `localStorage` exactly like a normal
-   login, and every request after this point (`authMiddleware.js`) checks
-   *that* token — Google is completely out of the picture from here on.
+   `generateToken()` function password login already used — and sets it
+   as an `HttpOnly` cookie on the response (`config/authCookie.js`), then
+   returns the non-sensitive profile fields (`role`, `username`, `email`,
+   `pic`) in the same response shape `/api/user/login` always returned,
+   minus the token itself.
+7. The frontend stores those non-sensitive fields in `localStorage` (for
+   optimistic UI only — display name, role, avatar) and never sees the
+   token. Every request after this point sends `credentials: "include"`,
+   so the browser attaches the cookie automatically; `authMiddleware.js`
+   reads it from `req.cookies` instead of an `Authorization` header —
+   Google is completely out of the picture from here on.
 
 ---
 
@@ -146,8 +166,9 @@ sequenceDiagram
             DB-->>B: new user row
         end
         B->>B: Sign our own App JWT (token_api secret)
-        B-->>F: 200 { role, username, email, pic, token }
-        F->>F: Store App JWT in localStorage
+        B->>F: Set-Cookie: osp_token=... (HttpOnly, Secure, SameSite)
+        B-->>F: 200 { role, username, email, pic }
+        F->>F: Store non-sensitive fields in localStorage (display only)
         F-->>S: Redirect to /student
     end
 ```
@@ -159,9 +180,9 @@ flowchart LR
         A["Google ID Token<br/>signed by Google<br/>proves: real dau.ac.in account<br/>used once, then discarded"]
     end
     A --> V["Backend verifies signature + domain"]
-    V -->|verified| C["App Session JWT<br/>signed by OUR server<br/>valid 30 days"]
+    V -->|verified| C["App Session JWT<br/>signed by OUR server<br/>valid 7 days<br/>HttpOnly cookie -- never readable by JS"]
     subgraph Every["Every request after login"]
-        C --> M["authMiddleware.js<br/>checks App JWT on every protected route"]
+        C --> M["authMiddleware.js<br/>reads cookie, checks App JWT on every protected route"]
     end
 ```
 

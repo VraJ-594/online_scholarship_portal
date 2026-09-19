@@ -1,4 +1,3 @@
-import { getStoredUserInfo } from "../utils/storage";
 import { useEffect, useState } from "react";
 
 const useFetch = (url) => {
@@ -8,13 +7,11 @@ const useFetch = (url) => {
 
   useEffect(() => {
     const fetchData = async () => {
-      const userInfo = getStoredUserInfo();
-
       try {
         const response = await fetch(url, {
+          credentials: "include",
           headers: {
             "Content-Type": "application/json",
-            authorization: `Bearer ${userInfo?.token}`,
           },
         });
 

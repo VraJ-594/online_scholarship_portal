@@ -1,7 +1,7 @@
 import { getStoredUserInfo } from "../../utils/storage";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useContextState, authHeaders } from "../../context/userProvider";
+import { useContextState } from "../../context/userProvider";
 import NavbarStudent from "../Navbar/StudentNavbar";
 import { ToastContainer, toast, Bounce } from "react-toastify";
 import ReactMarkdown from "react-markdown";
@@ -49,7 +49,7 @@ const ViewScholarshipStudent = () => {
     const loadPageData = async () => {
       const userInfo = getStoredUserInfo();
 
-      if (!userInfo?.token || !userInfo?.email) {
+      if (!userInfo?.email) {
         setError("You must be logged in to view this scholarship.");
         setLoading(false);
         return;
@@ -68,9 +68,9 @@ const ViewScholarshipStudent = () => {
         const scholarshipResponse = await fetch(
           `${baseURL}/api/user/viewscholarship/${scholarship_id}`,
           {
+            credentials: "include",
             headers: {
               "Content-Type": "application/json",
-              ...authHeaders(),
             },
           },
         );
@@ -103,9 +103,9 @@ const ViewScholarshipStudent = () => {
         const emailResponse = await fetch(
           `${baseURL}/api/user/getemail/${encodeURIComponent(userInfo.email)}`,
           {
+            credentials: "include",
             headers: {
               "Content-Type": "application/json",
-              ...authHeaders(),
             },
           },
         );
@@ -118,9 +118,9 @@ const ViewScholarshipStudent = () => {
         const documentsResponse = await fetch(
           `${baseURL}/api/user/getpdfurls/${encodeURIComponent(userInfo.email)}`,
           {
+            credentials: "include",
             headers: {
               "Content-Type": "application/json",
-              ...authHeaders(),
             },
           },
         );
@@ -174,7 +174,7 @@ const ViewScholarshipStudent = () => {
     }
 
     const userInfo = getStoredUserInfo();
-    if (!userInfo?.token || !userInfo?.email) {
+    if (!userInfo?.email) {
       toast.error("Your session has expired. Please log in again.");
       return;
     }
@@ -185,9 +185,9 @@ const ViewScholarshipStudent = () => {
         `${baseURL}/api/user/getApplicantId`,
         {
           method: "GET",
+          credentials: "include",
           headers: {
             "Content-Type": "application/json",
-            ...authHeaders(),
             email: userInfo.email,
           },
         },
@@ -216,9 +216,9 @@ const ViewScholarshipStudent = () => {
         `${baseURL}/api/user/applyForScholarship/${scholarship_id}`,
         {
           method: "POST",
+          credentials: "include",
           headers: {
             "Content-Type": "application/json",
-            ...authHeaders(),
           },
           body: JSON.stringify(payload),
         },

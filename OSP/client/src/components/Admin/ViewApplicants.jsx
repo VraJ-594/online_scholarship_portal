@@ -14,7 +14,7 @@ const ViewApplicants = () => {
   useEffect(() => {
     const fetchApplicants = async () => {
       const userInfo = getStoredUserInfo();
-      if (!userInfo?.token) {
+      if (!userInfo?.email) {
         setLoading(false);
         return;
       }
@@ -23,9 +23,9 @@ const ViewApplicants = () => {
         const response = await fetch(
           `${baseURL}/api/scholarship/${id}/applicants`,
           {
+            credentials: "include",
             headers: {
               "Content-Type": "application/json",
-              authorization: `Bearer ${userInfo.token}`,
             },
           },
         );

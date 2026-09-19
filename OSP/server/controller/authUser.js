@@ -1,6 +1,7 @@
 const bcrypt = require("bcryptjs");
 const pool = require("../config/db");
 const generateToken = require("../config/generateToken");
+const { setAuthCookie, clearAuthCookie } = require("../config/authCookie");
 
 const authUser = async (req, res) => {
   const { email, password, role } = req.body;
@@ -39,12 +40,15 @@ const authUser = async (req, res) => {
           });
       }
 
+      setAuthCookie(
+        res,
+        generateToken({ email: userExists.rows[0].email, role: userExists.rows[0].role }),
+      );
       return res.status(201).json({
         role: userExists.rows[0].role,
         username: userExists.rows[0].username,
         email: userExists.rows[0].email,
         pic: userExists.rows[0].pic,
-        token: generateToken({email:userExists.rows[0].email,role:userExists.rows[0].role}),
       });
     }
   );
@@ -58,12 +62,20 @@ const authUser = async (req, res) => {
 // POST {email, role:"admin"} here and receive a valid admin token with no
 // password. The route now requires `protect`, closing that off entirely.)
 const authRole = async (req, res) => {
+  setAuthCookie(res, generateToken({ email: req.user.email, role: req.user.role }));
   return res.status(200).json({
     username: req.user.username,
     email: req.user.email,
     pic: req.user.pic,
     role: req.user.role,
-    token: generateToken({ email: req.user.email, role: req.user.role }),
   });
 };
-module.exports = { authUser, authRole };
+
+// Clears the session cookie. Public: logging out is safe to call regardless
+// of whether the caller is actually authenticated.
+const logoutUser = (req, res) => {
+  clearAuthCookie(res);
+  return res.status(200).json({ message: "Logged out" });
+};
+
+module.exports = { authUser, authRole, logoutUser };

@@ -50,7 +50,7 @@ const editScholarship = async (req, res) => {
         annual_family_income = $8,
         benefits = $9,
         note = $10
-      WHERE scholarship_id = $11
+      WHERE scholarship_id = $11 AND deleted_at IS NULL
     `;
 
     // Array of values for parameterized query

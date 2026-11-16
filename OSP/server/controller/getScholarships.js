@@ -18,6 +18,7 @@ const getScholarships = async (req, res, next) => {
           COUNT(a.applicant_id) AS applicants_count
       FROM osp.Scholarships AS s
       LEFT JOIN osp.applied_in AS a ON s.scholarship_id = a.scholarship_id
+      WHERE s.deleted_at IS NULL
     `;
 
     const queryParams = [];
@@ -25,7 +26,7 @@ const getScholarships = async (req, res, next) => {
     // 3. Apply Search Filter if provided
     if (searchQuery.trim() !== "") {
       // ILIKE makes the search case-insensitive in PostgreSQL
-      getQuery += ` WHERE s.scholarship_name ILIKE $1 `;
+      getQuery += ` AND s.scholarship_name ILIKE $1 `;
       queryParams.push(`%${searchQuery.trim()}%`);
     }
 
@@ -39,10 +40,10 @@ const getScholarships = async (req, res, next) => {
     queryParams.push(limit, offset);
 
     // 5. Build the Total-Count Query (independent of the data query above)
-    let totalCountQuery = `SELECT COUNT(*) FROM osp.Scholarships`;
+    let totalCountQuery = `SELECT COUNT(*) FROM osp.Scholarships WHERE deleted_at IS NULL`;
     const countParams = [];
     if (searchQuery.trim() !== "") {
-      totalCountQuery += ` WHERE scholarship_name ILIKE $1`;
+      totalCountQuery += ` AND scholarship_name ILIKE $1`;
       countParams.push(`%${searchQuery.trim()}%`);
     }
 

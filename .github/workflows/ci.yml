@@ -44,3 +44,6 @@ jobs:
 
       - name: Syntax-check every JS file
         run: find . -name "*.js" -not -path "./node_modules/*" -print0 | xargs -0 -n1 node --check
+
+      - name: Scholarship soft-delete regression tests (offline)
+        run: node --test tests/scholarship-soft-delete.test.cjs

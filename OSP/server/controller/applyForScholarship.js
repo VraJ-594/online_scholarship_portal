@@ -11,13 +11,18 @@ const applyForScholarship = async (req, res, next) => {
     return res.status(400).json({ message: "Please provide all required fields." });
   }
 
+  let client;
+  let transactionOpen = false;
   try {
+    client = await pool.connect();
+    await client.query("BEGIN");
+    transactionOpen = true;
     // ========================================================================
     // 0. DERIVE THE APPLICANT ID FROM THE AUTHENTICATED USER
     // (never trust a client-supplied applicant_id — it would let one student
     // submit an application on another student's behalf)
     // ========================================================================
-    const applicantIdLookup = await pool.query(
+    const applicantIdLookup = await client.query(
       "SELECT applicant_id FROM osp.applicants WHERE email = $1",
       [req.user.email]
     );
@@ -33,9 +38,11 @@ const applyForScholarship = async (req, res, next) => {
     const scholarshipQuery = `
       SELECT min_percentage, annual_family_income, education_level, eligible_courses 
       FROM osp.Scholarships 
-      WHERE scholarship_id = $1
+      WHERE scholarship_id = $1 AND deleted_at IS NULL
+      FOR SHARE
     `;
-    const scholarshipRes = await pool.query(scholarshipQuery, [scholarship_id]);
+    // Hold a row lock until insertion commits so deletion cannot overtake it.
+    const scholarshipRes = await client.query(scholarshipQuery, [scholarship_id]);
     
     if (scholarshipRes.rows.length === 0) {
       return res.status(404).json({ message: "Scholarship not found." });
@@ -57,7 +64,7 @@ const applyForScholarship = async (req, res, next) => {
       LEFT JOIN osp.Departments_with_Programs dp ON ed.department_name = dp.department_name
       WHERE a.applicant_id = $1
     `;
-    const applicantRes = await pool.query(applicantQuery, [applicant_id]);
+    const applicantRes = await client.query(applicantQuery, [applicant_id]);
 
     if (applicantRes.rows.length === 0) {
       return res.status(404).json({ message: "Applicant profile not found. Please complete your profile first." });
@@ -122,7 +129,9 @@ const applyForScholarship = async (req, res, next) => {
     `;
     const values = [scholarship_id, applicant_id, applied_date, status];
 
-    await pool.query(insertQuery, values);
+    await client.query(insertQuery, values);
+    await client.query("COMMIT");
+    transactionOpen = false;
     
     console.log(`---> [applyForScholarship] Success! Application inserted for Scholarship ID: ${scholarship_id}`);
     
@@ -140,6 +149,20 @@ const applyForScholarship = async (req, res, next) => {
     
     console.error("---> [applyForScholarship] System Error:", error.message);
     next(error); // Pass to global error handler
+  } finally {
+    if (client) {
+      let rollbackError;
+      if (transactionOpen) {
+        try {
+          await client.query("ROLLBACK");
+        } catch (error) {
+          rollbackError = error;
+          console.error("Application rollback failed:", error.message);
+        }
+      }
+      // Destroy a broken connection rather than returning it to the pool.
+      client.release(rollbackError);
+    }
   }
 };
 

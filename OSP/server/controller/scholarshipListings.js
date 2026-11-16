@@ -15,6 +15,7 @@ const getListOfScholarships = async (req, res) => {
         osp.Scholarships s
       LEFT JOIN 
         osp.Applied_in ai ON s.scholarship_id = ai.scholarship_id
+      WHERE s.deleted_at IS NULL
       GROUP BY 
         s.scholarship_id, s.scholarship_name, s.start_date, s.end_date
       ORDER BY 

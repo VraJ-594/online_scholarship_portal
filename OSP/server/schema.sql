@@ -58,7 +58,8 @@ CREATE TABLE scholarships (
     min_percentage NUMERIC NOT NULL CHECK (min_percentage >= 0),
     annual_family_income INTEGER NOT NULL CHECK (annual_family_income >= 0),
     benefits TEXT,
-    note TEXT
+    note TEXT,
+    deleted_at TIMESTAMPTZ
 );
 
 -- ============================================================

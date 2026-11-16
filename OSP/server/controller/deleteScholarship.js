@@ -14,35 +14,30 @@ const deleteScholarship = async (req, res) => {
   //   return res.status(400).json("Scholarship ID is required");
   // }
 
-  // Run both deletes in one transaction so a failure partway through can't
-  // leave applications deleted while the scholarship row survives (or vice versa)
-  const client = await pool.connect();
   try {
-    await client.query("BEGIN");
-
-    await client.query(`DELETE FROM osp.applied_in WHERE scholarship_id = $1`, [scholarship_id]);
-    const result = await client.query(`DELETE FROM osp.Scholarships WHERE scholarship_id = $1`, [scholarship_id]);
+    // Keep the scholarship, applications and payments for historical review.
+    // A single conditional UPDATE is atomic, including concurrent deletions.
+    const result = await pool.query(`
+      UPDATE osp.scholarships
+      SET deleted_at = CURRENT_TIMESTAMP
+      WHERE scholarship_id = $1 AND deleted_at IS NULL
+    `, [scholarship_id]);
 
     if (result.rowCount === 0) {
-      await client.query("ROLLBACK");
       console.error("Scholarship not found");
       return res.status(404).json("Scholarship not found");
     }
 
-    await client.query("COMMIT");
-    console.log(`Deleted scholarship with ID: ${scholarship_id}`);
+    console.log(`Soft-deleted scholarship with ID: ${scholarship_id}`);
     res.status(200).json({
       message: "Scholarship deleted successfully",
       scholarship_id,
     });
   } catch (error) {
-    await client.query("ROLLBACK");
     console.error("Error deleting scholarship:", error.message);
     res.status(500).json({
       errMsg: "Internal Server Error",
     });
-  } finally {
-    client.release();
   }
 };
 
